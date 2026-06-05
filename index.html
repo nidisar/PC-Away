@@ -727,9 +727,10 @@ var _swReg = null;
 
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('sw.js').then(function (reg) {
+  /* updateViaCache:'none' → browser ignora cache HTTP per sw.js, scarica sempre dal network */
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
     _swReg = reg;
-    reg.update();
+    reg.update(); // controlla subito aggiornamenti
   }).catch(function (e) { console.warn('SW:', e); });
 }
 

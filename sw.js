@@ -1,5 +1,5 @@
 /* PC Away — Service Worker v1.1 */
-const CACHE = 'pc-away-v3';
+const CACHE = 'pc-away-v4';
 /* Path base dinamico — funziona sia su localhost che su GitHub Pages /PC-Away/ */
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
@@ -22,8 +22,23 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  var url = e.request.url;
+  /* index.html → network-first: prende sempre la versione più recente */
+  if (url.endsWith('/') || url.endsWith('index.html')) {
+    e.respondWith(
+      fetch(e.request).then(function(res) {
+        var clone = res.clone();
+        caches.open(CACHE).then(function(c) { c.put(e.request, clone); });
+        return res;
+      }).catch(function() {
+        return caches.match(e.request);
+      })
+    );
+    return;
+  }
+  /* Tutto il resto → cache-first */
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request))
+    caches.match(e.request).then(function(cached) { return cached || fetch(e.request); })
   );
 });
 
