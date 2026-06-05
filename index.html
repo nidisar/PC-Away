@@ -234,9 +234,9 @@
       <div class="cmd-section">
         <div class="section-title">Toggle Auto Refresh</div>
         <div class="cmd-grid">
-          <button class="cmd-btn info"    onclick="sendCmd('ar rfy')"><span class="bicon">🔵</span>AR RFY</button>
-          <button class="cmd-btn success" onclick="sendCmd('ar afa')"><span class="bicon">🟢</span>AR AFA</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('ar ai')"> <span class="bicon">🟠</span>AR AI</button>
+          <button class="cmd-btn info"    onclick="sendCmd('ar rfy')" data-state-key="ar-rfy"><span class="bicon">🔵</span>AR RFY</button>
+          <button class="cmd-btn success" onclick="sendCmd('ar afa')" data-state-key="ar-afa"><span class="bicon">🟢</span>AR AFA</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('ar ai')"  data-state-key="ar-ai"> <span class="bicon">🟠</span>AR AI</button>
           <button class="cmd-btn danger"  onclick="sendCmd('ar off')"><span class="bicon">🔴</span>AR OFF Tutti</button>
         </div>
       </div>
@@ -549,26 +549,53 @@ function execOrder(key) {
     .catch(function(e) { showFeedback('❌ ' + e.message, true); });
 }
 
-/* ── Stato tasti da risposta [BOT] Stato ── */
+/* ── Stato tasti da ogni risposta [BOT] ── */
 function parseBotStato(msg) {
   var title = msg.title || '';
   var body  = msg.message || '';
-  if (title.indexOf('Stato') === -1) return;
-  updateBtnStates({
-    'armed':       body.indexOf('Cecchino attivo: ✅') !== -1,
-    'fullauto':    body.indexOf('Full Auto: ✅') !== -1,
-    'sched-rfy':   body.indexOf('Sched RFY: ✅') !== -1,
-    'det-rfy':     body.indexOf('Det RFY: ✅') !== -1,
-    'det-aadpt':   body.indexOf('Det AA/DPT:') !== -1 && body.indexOf('✅') !== -1,
-    'sched-aadpt': body.indexOf('Sched AA/DPT: ✅') !== -1
-  });
+  var on    = body.indexOf('✅') !== -1;
+  var u     = {};
+
+  /* Risposta "stato" completo */
+  if (title.indexOf('Stato') !== -1) {
+    updateBtnStates({
+      'armed':       body.indexOf('Cecchino attivo: ✅') !== -1,
+      'fullauto':    body.indexOf('Full Auto: ✅') !== -1,
+      'sched-rfy':   body.indexOf('Sched RFY: ✅') !== -1,
+      'det-rfy':     body.indexOf('Det RFY: ✅') !== -1,
+      'det-aadpt':   body.indexOf('Det AA/DPT:') !== -1 && body.indexOf('✅') !== -1,
+      'sched-aadpt': body.indexOf('Sched AA/DPT: ✅') !== -1,
+      'ar-rfy':      body.indexOf('AR RFY: ✅') !== -1,
+      'ar-afa':      body.indexOf('AR AFA: ✅') !== -1,
+      'ar-ai':       body.indexOf('AR AI: ✅') !== -1
+    });
+    return;
+  }
+
+  /* Risposte individuali */
+  if (title.indexOf('Full Auto')   !== -1) u['fullauto']    = on;
+  if (title.indexOf('Sched RFY')   !== -1) u['sched-rfy']   = on;
+  if (title.indexOf('Det RFY')     !== -1) u['det-rfy']     = on;
+  if (title.indexOf('Det AA/DPT')  !== -1) u['det-aadpt']   = on;
+  if (title.indexOf('Sched AA/DPT')!== -1) u['sched-aadpt'] = on;
+  if (title.indexOf('AR RFY')      !== -1) u['ar-rfy']      = on;
+  if (title.indexOf('AR AFA')      !== -1) u['ar-afa']      = on;
+  if (title.indexOf('AR AI')       !== -1) u['ar-ai']       = on;
+  if (title.indexOf('AR OFF')      !== -1) { u['ar-rfy'] = false; u['ar-afa'] = false; u['ar-ai'] = false; }
+  if (title.indexOf('Avvio')       !== -1) u['armed']       = true;
+  if (title.indexOf('Disattivato') !== -1) {
+    u = { armed:false, fullauto:false, 'ar-rfy':false, 'ar-afa':false, 'ar-ai':false,
+          'sched-rfy':false, 'sched-aadpt':false, 'det-rfy':false, 'det-aadpt':false };
+  }
+
+  if (Object.keys(u).length) updateBtnStates(u);
 }
 
 function updateBtnStates(states) {
   document.querySelectorAll('[data-state-key]').forEach(function(btn) {
     var k = btn.getAttribute('data-state-key');
     if (!(k in states)) return;
-    btn.classList.toggle('state-on',  states[k]);
+    btn.classList.toggle('state-on',  !!states[k]);
     btn.classList.toggle('state-off', !states[k]);
   });
 }
