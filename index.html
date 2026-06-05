@@ -401,11 +401,11 @@ function stopSSE() {
 
 function startSSE() {
   stopSSE();
+  /* Il topic CMD è solo per INVIARE comandi — non lo ascoltiamo in SSE */
   var topics = [
     { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
     { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
-    { id: cfg.topicAa,  key: 'aa',  label: 'AA' },
-    { id: cfg.topicCmd, key: 'cmd', label: 'CMD' }
+    { id: cfg.topicAa,  key: 'aa',  label: 'AA' }
   ].filter(function (t) { return t.id && t.id.trim(); });
 
   if (!topics.length) { setConnDot('off'); return; }
@@ -633,11 +633,14 @@ function subscribePush() {
   Notification.requestPermission().then(function (perm) {
     updatePushStatusBar();
     if (perm !== 'granted') return;
-    (function waitReg(tries) {
-      if (_swReg) { doSubscribe(_swReg); return; }
-      if (tries <= 0) { document.getElementById('push-info').textContent = '❌ Service Worker non ancora pronto, riprova.'; return; }
-      setTimeout(function () { waitReg(tries - 1); }, 500);
-    }(10));
+    /* Usa serviceWorker.ready — restituisce la registration solo quando
+       il SW è in stato "activated", evitando "no active service worker" */
+    navigator.serviceWorker.ready.then(function (reg) {
+      _swReg = reg;
+      doSubscribe(reg);
+    }).catch(function (err) {
+      document.getElementById('push-info').textContent = '❌ SW non disponibile: ' + err.message;
+    });
   });
 }
 
