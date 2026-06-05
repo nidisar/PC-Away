@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e94560">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PC Away">
+  <title>PC Away</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg">
+  <style>
+    :root {
+      --bg:      #0d1117;
+      --bg2:     #161b22;
+      --bg3:     #21262d;
+      --border:  #30363d;
+      --accent:  #e94560;
+      --accent2: #c73652;
+      --text:    #e6edf3;
+      --text2:   #8b949e;
+      --cpt:     #4fc3f7;
+      --dpt:     #81c784;
+      --aa:      #ffb74d;
+      --cmd:     #ce93d8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
+
+    /* ── Login ── */
+    #login-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100vh; padding: 32px;
+    }
+    #login-screen .logo { font-size: 64px; font-weight: 900; color: var(--accent); letter-spacing: -2px; line-height: 1; }
+    #login-screen .sublogo { font-size: 18px; font-weight: 900; color: var(--accent); margin-top: -4px; letter-spacing: 6px; }
+    #login-screen .tagline { font-size: 13px; color: var(--text2); margin-top: 6px; margin-bottom: 48px; }
+    #login-screen input {
+      width: 100%; max-width: 320px; padding: 14px 16px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+      font-size: 20px; text-align: center; letter-spacing: 6px; margin-bottom: 14px; outline: none;
+    }
+    #login-screen input:focus { border-color: var(--accent); }
+    #login-screen .btn-login {
+      width: 100%; max-width: 320px; padding: 14px; border-radius: 10px;
+      background: var(--accent); color: #fff; font-size: 16px; font-weight: 700;
+      border: none; cursor: pointer;
+    }
+    #login-screen .btn-login:active { background: var(--accent2); }
+    #login-screen .err { color: var(--accent); font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+    /* ── App shell ── */
+    #app { display: none; flex-direction: column; height: 100vh; }
+    #app.visible { display: flex; }
+
+    /* ── Header ── */
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--bg2); border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
+    .header .logo { font-size: 20px; font-weight: 900; color: var(--accent); letter-spacing: 1px; }
+    .header .pc-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text2); }
+    .status-dot { width: 9px; height: 9px; border-radius: 50%; background: #444; flex-shrink: 0; }
+    .status-dot.green { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+    .status-dot.red   { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+
+    /* ── Tab bar ── */
+    .tabbar {
+      display: flex; background: var(--bg2); border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .tabbar button {
+      flex: 1; padding: 8px 4px 6px; background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--text2); font-size: 11px; cursor: pointer; transition: color .2s, border-color .2s;
+    }
+    .tabbar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tabbar button .ticon { font-size: 19px; display: block; margin-bottom: 2px; }
+
+    /* ── Content ── */
+    .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .tab-panel { display: none; padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+    .tab-panel.active { display: block; }
+
+    /* ── Feed ── */
+    #feed-list { display: flex; flex-direction: column; gap: 10px; }
+    .feed-empty { text-align: center; color: var(--text2); padding: 56px 20px; font-size: 14px; }
+    .feed-item {
+      background: var(--bg2); border-radius: 10px; padding: 12px 14px;
+      border-left: 3px solid var(--border); animation: fadeSlide .25s ease;
+    }
+    .feed-item.cpt { border-left-color: var(--cpt); }
+    .feed-item.dpt { border-left-color: var(--dpt); }
+    .feed-item.aa  { border-left-color: var(--aa); }
+    .feed-item.cmd { border-left-color: var(--cmd); }
+    .fi-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+    .fi-left { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+    .fi-tag {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: .5px; align-self: flex-start;
+    }
+    .feed-item.cpt .fi-tag { background: rgba(79,195,247,.15); color: var(--cpt); }
+    .feed-item.dpt .fi-tag { background: rgba(129,199,132,.15); color: var(--dpt); }
+    .feed-item.aa  .fi-tag { background: rgba(255,183,77,.15); color: var(--aa); }
+    .feed-item.cmd .fi-tag { background: rgba(206,147,216,.15); color: var(--cmd); }
+    .fi-title { font-size: 13px; font-weight: 600; color: var(--text); word-break: break-word; }
+    .fi-time { font-size: 11px; color: var(--text2); flex-shrink: 0; margin-left: 8px; padding-top: 2px; }
+    .fi-body { font-size: 13px; color: var(--text2); line-height: 1.45; word-break: break-word; }
+    .fi-img { max-width: 100%; border-radius: 7px; margin-top: 8px; display: block; }
+    @keyframes fadeSlide { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
+
+    /* ── Commands ── */
+    .cmd-section { margin-bottom: 20px; }
+    .section-title { font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 10px; }
+    .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .cmd-btn {
+      padding: 14px 10px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg2); color: var(--text); font-size: 13px; font-weight: 600;
+      cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
+      transition: background .12s;
+    }
+    .cmd-btn:active { background: var(--bg3); }
+    .cmd-btn .bicon { font-size: 24px; }
+    .cmd-btn.danger  { border-color: rgba(233,69,96,.4);  color: var(--accent); }
+    .cmd-btn.success { border-color: rgba(129,199,132,.4); color: var(--dpt); }
+    .cmd-btn.info    { border-color: rgba(79,195,247,.4);  color: var(--cpt); }
+    .cmd-btn.warn    { border-color: rgba(255,183,77,.4);  color: var(--aa); }
+    .cmd-btn.purple  { border-color: rgba(206,147,216,.4); color: var(--cmd); }
+    .cmd-btn.danger:active  { background: rgba(233,69,96,.08); }
+    .cmd-btn.success:active { background: rgba(129,199,132,.08); }
+    .cmd-btn.info:active    { background: rgba(79,195,247,.08); }
+    .cmd-btn.warn:active    { background: rgba(255,183,77,.08); }
+    .cmd-btn.purple:active  { background: rgba(206,147,216,.08); }
+    .cmd-feedback { font-size: 13px; padding: 8px 0 2px; min-height: 22px; text-align: center; }
+
+    /* ── Settings ── */
+    .settings-section { margin-bottom: 22px; }
+    .settings-row { margin-bottom: 12px; }
+    .s-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
+    .s-input {
+      width: 100%; padding: 10px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+      font-size: 14px; outline: none;
+    }
+    .s-input:focus { border-color: var(--accent); }
+    .s-btn {
+      width: 100%; padding: 13px; border-radius: 10px;
+      background: var(--accent); color: #fff; font-size: 15px; font-weight: 700;
+      border: none; cursor: pointer; margin-bottom: 10px;
+    }
+    .s-btn:active { background: var(--accent2); }
+    .s-btn-outline {
+      width: 100%; padding: 13px; border-radius: 10px;
+      background: var(--bg2); color: var(--text); font-size: 14px; font-weight: 600;
+      border: 1px solid var(--border); cursor: pointer; margin-bottom: 10px;
+    }
+    .s-btn-outline:active { background: var(--bg3); }
+    .s-info { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.5; }
+    .push-status {
+      padding: 10px 14px; border-radius: 8px; margin-bottom: 14px;
+      font-size: 13px; display: flex; align-items: center; gap: 8px;
+    }
+    .push-status.granted { background: rgba(129,199,132,.1); color: var(--dpt); border: 1px solid rgba(129,199,132,.25); }
+    .push-status.denied  { background: rgba(233,69,96,.1);   color: var(--accent); border: 1px solid rgba(233,69,96,.25); }
+    .push-status.default { background: rgba(255,183,77,.1);  color: var(--aa);     border: 1px solid rgba(255,183,77,.25); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ LOGIN ═══════════════════════ -->
+<div id="login-screen">
+  <div class="logo">PC</div>
+  <div class="sublogo">AWAY</div>
+  <div class="tagline">Phantom Core Remote</div>
+  <input type="password" id="pwd-input" placeholder="Password" autocomplete="current-password">
+  <button class="btn-login" onclick="doLogin()">Accedi</button>
+  <div class="err" id="login-err"></div>
+</div>
+
+<!-- ═══════════════════════ APP ═══════════════════════ -->
+<div id="app">
+  <div class="header">
+    <div class="logo">PC AWAY</div>
+    <div class="pc-status">
+      <span class="status-dot" id="conn-dot"></span>
+      <span id="conn-label">—</span>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <button class="active" id="tab-btn-feed" onclick="switchTab('feed',this)">
+      <span class="ticon">📡</span>Feed
+    </button>
+    <button id="tab-btn-cmds" onclick="switchTab('cmds',this)">
+      <span class="ticon">🎮</span>Comandi
+    </button>
+    <button id="tab-btn-settings" onclick="switchTab('settings',this)">
+      <span class="ticon">⚙️</span>Impostazioni
+    </button>
+  </div>
+
+  <div class="content">
+
+    <!-- ── FEED ── -->
+    <div class="tab-panel active" id="tab-feed">
+      <div id="feed-list">
+        <div class="feed-empty" id="feed-empty">📡 In attesa di notifiche…</div>
+      </div>
+    </div>
+
+    <!-- ── COMMANDS ── -->
+    <div class="tab-panel" id="tab-cmds">
+
+      <div class="cmd-section">
+        <div class="section-title">Stato &amp; Controllo</div>
+        <div class="cmd-grid">
+          <button class="cmd-btn info"    onclick="sendCmd('stato')">   <span class="bicon">📊</span>Stato</button>
+          <button class="cmd-btn success" onclick="sendCmd('avvia')">   <span class="bicon">▶️</span>Avvia</button>
+          <button class="cmd-btn danger"  onclick="sendCmd('stop')">    <span class="bicon">⏹️</span>Stop</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('reload')">  <span class="bicon">🔄</span>Reload</button>
+        </div>
+      </div>
+
+      <div class="cmd-section">
+        <div class="section-title">Auto Refresh</div>
+        <div class="cmd-grid">
+          <button class="cmd-btn success" onclick="sendCmd('ar-on')">      <span class="bicon">🟢</span>AR ON</button>
+          <button class="cmd-btn danger"  onclick="sendCmd('ar-off')">     <span class="bicon">🔴</span>AR OFF</button>
+          <button class="cmd-btn info"    onclick="sendCmd('ar-cpt-on')">  <span class="bicon">🔵</span>CPT ON</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('ar-cpt-off')"> <span class="bicon">⭕</span>CPT OFF</button>
+          <button class="cmd-btn info"    onclick="sendCmd('ar-dpt-on')">  <span class="bicon">🟩</span>DPT ON</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('ar-dpt-off')"> <span class="bicon">🟨</span>DPT OFF</button>
+          <button class="cmd-btn info"    onclick="sendCmd('ar-aa-on')">   <span class="bicon">🟠</span>AA ON</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('ar-aa-off')">  <span class="bicon">⚪</span>AA OFF</button>
+        </div>
+      </div>
+
+      <div class="cmd-section">
+        <div class="section-title">Full Auto</div>
+        <div class="cmd-grid">
+          <button class="cmd-btn success" onclick="sendCmd('fullauto-on')">  <span class="bicon">⚡</span>Full Auto ON</button>
+          <button class="cmd-btn danger"  onclick="sendCmd('fullauto-off')"> <span class="bicon">💤</span>Full Auto OFF</button>
+        </div>
+      </div>
+
+      <div class="cmd-section">
+        <div class="section-title">Scheduler</div>
+        <div class="cmd-grid">
+          <button class="cmd-btn purple"  onclick="sendCmd('sched-on')">  <span class="bicon">🕐</span>Sched ON</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('sched-off')"> <span class="bicon">🕑</span>Sched OFF</button>
+        </div>
+      </div>
+
+      <div class="cmd-feedback" id="cmd-feedback"></div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div class="tab-panel" id="tab-settings">
+
+      <div class="settings-section">
+        <div class="section-title">Notifiche Push</div>
+        <div id="push-status-bar"></div>
+        <button class="s-btn-outline" id="push-subscribe-btn" onclick="subscribePush()">
+          🔔 Attiva Notifiche Push
+        </button>
+        <p class="s-info" id="push-info">Attiva le notifiche push per riceverle anche con l'app in background o il telefono bloccato.</p>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-title">Autenticazione ntfy</div>
+        <div class="settings-row">
+          <div class="s-label">Access Token</div>
+          <input class="s-input" type="password" id="s-token" placeholder="tk_xxxxxxxxxxxx" autocomplete="off">
+        </div>
+        <p class="s-info">Necessario per account ntfy.sh Pro. Lascia vuoto se usi topics pubblici.</p>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-title">Topic ntfy</div>
+        <div class="settings-row">
+          <div class="s-label">Topic CPT</div>
+          <input class="s-input" type="text" id="s-cpt" placeholder="mio-topic-cpt" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <div class="s-label">Topic DPT</div>
+          <input class="s-input" type="text" id="s-dpt" placeholder="mio-topic-dpt" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <div class="s-label">Topic AA</div>
+          <input class="s-input" type="text" id="s-aa" placeholder="mio-topic-aa" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <div class="s-label">Topic Comandi (invio)</div>
+          <input class="s-input" type="text" id="s-cmd" placeholder="mio-topic-comandi" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="section-title">Sicurezza</div>
+        <div class="settings-row">
+          <div class="s-label">Nuova Password</div>
+          <input class="s-input" type="password" id="s-newpwd" placeholder="Lascia vuoto per non cambiare" autocomplete="new-password">
+        </div>
+        <div class="settings-row">
+          <div class="s-label">Conferma Nuova Password</div>
+          <input class="s-input" type="password" id="s-newpwd2" placeholder="Ripeti la password" autocomplete="new-password">
+        </div>
+      </div>
+
+      <button class="s-btn" onclick="saveSettings()">💾 Salva Impostazioni</button>
+      <p class="s-info" id="settings-feedback"></p>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+/* ──────────────────────────────────────────────────────────────────────────
+   PC Away — index.js
+   ────────────────────────────────────────────────────────────────────────── */
+var NTFY_BASE  = 'https://ntfy.sh';
+var VAPID_KEY  = 'BEMjM0sNxh41x0a6Lz3YaqkJ7AUhZefxsOQgw-at69i0fM1CybVBcj7-QQXf4N_tPCgFnOXdRbQ5jrSrr9Yg9Lc';
+var STORE_KEY  = 'pcaway_config';
+var PWD_KEY    = 'pcaway_pwd';
+var MAX_FEED   = 60;
+
+/* ── Config ── */
+var cfg = { token: '', topicCpt: '', topicDpt: '', topicAa: '', topicCmd: '' };
+
+function loadCfg() {
+  try { var s = localStorage.getItem(STORE_KEY); if (s) cfg = JSON.parse(s); } catch (e) {}
+}
+function saveCfg() { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); }
+
+function authHeaders(extra) {
+  var h = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+  if (cfg.token) h['Authorization'] = 'Bearer ' + cfg.token.trim();
+  return h;
+}
+
+/* ── Login ── */
+function checkLogin() {
+  var saved = localStorage.getItem(PWD_KEY);
+  if (!saved) {
+    /* First run — no password yet; go straight to app */
+    showApp();
+  }
+  /* else login screen already visible (default state) */
+}
+
+function doLogin() {
+  var input = document.getElementById('pwd-input').value;
+  var saved = localStorage.getItem(PWD_KEY);
+  if (!saved || input === saved) {
+    document.getElementById('login-err').textContent = '';
+    showApp();
+  } else {
+    document.getElementById('login-err').textContent = 'Password errata';
+    document.getElementById('pwd-input').value = '';
+    document.getElementById('pwd-input').focus();
+  }
+}
+
+document.getElementById('pwd-input').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') doLogin();
+});
+
+function showApp() {
+  loadCfg();
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  initApp();
+}
+
+/* ── Init ── */
+function initApp() {
+  loadSettingsToForm();
+  updatePushStatusBar();
+  startSSE();
+  registerSW();
+  listenSWMessages();
+}
+
+/* ── Tabs ── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tabbar button').forEach(function (b) { b.classList.remove('active'); });
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ── SSE feed (fetch + ReadableStream) ── */
+var _sseAborts = [];
+
+function stopSSE() {
+  _sseAborts.forEach(function (ac) { try { ac.abort(); } catch (e) {} });
+  _sseAborts = [];
+  setConnDot('off');
+}
+
+function startSSE() {
+  stopSSE();
+  var topics = [
+    { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
+    { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
+    { id: cfg.topicAa,  key: 'aa',  label: 'AA' },
+    { id: cfg.topicCmd, key: 'cmd', label: 'CMD' }
+  ].filter(function (t) { return t.id && t.id.trim(); });
+
+  if (!topics.length) { setConnDot('off'); return; }
+
+  var okCount = 0;
+
+  topics.forEach(function (t) {
+    var ac = new AbortController();
+    _sseAborts.push(ac);
+
+    (function connect(retryDelay) {
+      if (ac.signal.aborted) return;
+      setTimeout(function () {
+        if (ac.signal.aborted) return;
+        var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=0&since=1m';
+        var headers = {};
+        if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
+
+        fetch(url, { signal: ac.signal, headers: headers })
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            okCount++;
+            if (okCount >= topics.length) setConnDot('green');
+
+            var reader  = res.body.getReader();
+            var decoder = new TextDecoder();
+
+            function pump() {
+              reader.read().then(function (chunk) {
+                if (chunk.done) {
+                  okCount = Math.max(0, okCount - 1);
+                  if (okCount === 0) setConnDot('red');
+                  if (!ac.signal.aborted) connect(5000);
+                  return;
+                }
+                var text = decoder.decode(chunk.value, { stream: true });
+                text.split('\n').forEach(function (line) {
+                  line = line.trim();
+                  if (!line) return;
+                  try {
+                    var msg = JSON.parse(line);
+                    if (msg.event === 'message') addFeedItem(msg, t.key, t.label);
+                  } catch (e) {}
+                });
+                pump();
+              }).catch(function () {
+                okCount = Math.max(0, okCount - 1);
+                if (okCount === 0) setConnDot('red');
+                if (!ac.signal.aborted) connect(5000);
+              });
+            }
+            pump();
+          })
+          .catch(function () {
+            if (!ac.signal.aborted) connect(retryDelay < 30000 ? retryDelay * 2 : 30000);
+          });
+      }, retryDelay);
+    }(0));
+  });
+}
+
+function setConnDot(state) {
+  var dot = document.getElementById('conn-dot');
+  var lbl = document.getElementById('conn-label');
+  dot.className = 'status-dot' + (state === 'green' ? ' green' : state === 'red' ? ' red' : '');
+  lbl.textContent = state === 'green' ? 'Connesso' : state === 'red' ? 'Errore' : '—';
+}
+
+/* ── Feed items ── */
+function addFeedItem(msg, qKey, qLabel) {
+  var list  = document.getElementById('feed-list');
+  var empty = document.getElementById('feed-empty');
+  if (empty) empty.style.display = 'none';
+
+  var t = new Date((msg.time || (Date.now() / 1000)) * 1000);
+  var ts = t.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  var imgHtml = '';
+  if (msg.attachment && msg.attachment.url) {
+    imgHtml = '<img class="fi-img" src="' + esc(msg.attachment.url) + '" alt="" loading="lazy">';
+  }
+
+  var el = document.createElement('div');
+  el.className = 'feed-item ' + qKey;
+  el.innerHTML =
+    '<div class="fi-header">' +
+      '<div class="fi-left">' +
+        '<span class="fi-tag">' + qLabel + '</span>' +
+        '<span class="fi-title">' + esc(msg.title || '') + '</span>' +
+      '</div>' +
+      '<span class="fi-time">' + ts + '</span>' +
+    '</div>' +
+    '<div class="fi-body">' + esc(msg.message || '') + '</div>' +
+    imgHtml;
+
+  list.insertBefore(el, list.firstChild);
+  /* Trim to max */
+  while (list.children.length > MAX_FEED + 1) list.removeChild(list.lastChild);
+
+  /* In-app sound */
+  playTone(qKey);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ── Commands ── */
+function sendCmd(cmd) {
+  var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
+  if (!topic) { showFeedback('⚠️ Topic comandi non configurato — vai in Impostazioni', true); return; }
+
+  fetch(NTFY_BASE + '/' + topic, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ cmd: cmd, src: 'pc-away', ts: Date.now() })
+  }).then(function (res) {
+    if (res.ok) showFeedback('✅ "' + cmd + '" inviato', false);
+    else showFeedback('❌ HTTP ' + res.status, true);
+  }).catch(function (err) {
+    showFeedback('❌ ' + err.message, true);
+  });
+}
+
+var _fbTimer;
+function showFeedback(msg, isErr) {
+  var el = document.getElementById('cmd-feedback');
+  el.style.color = isErr ? 'var(--accent)' : 'var(--dpt)';
+  el.textContent = msg;
+  clearTimeout(_fbTimer);
+  _fbTimer = setTimeout(function () { el.textContent = ''; }, 3500);
+}
+
+/* ── Settings ── */
+function loadSettingsToForm() {
+  document.getElementById('s-token').value = cfg.token    || '';
+  document.getElementById('s-cpt').value   = cfg.topicCpt || '';
+  document.getElementById('s-dpt').value   = cfg.topicDpt || '';
+  document.getElementById('s-aa').value    = cfg.topicAa  || '';
+  document.getElementById('s-cmd').value   = cfg.topicCmd || '';
+}
+
+function saveSettings() {
+  var newPwd  = document.getElementById('s-newpwd').value;
+  var newPwd2 = document.getElementById('s-newpwd2').value;
+  var fb = document.getElementById('settings-feedback');
+
+  if (newPwd && newPwd !== newPwd2) {
+    fb.textContent = '❌ Le password non coincidono';
+    fb.style.color = 'var(--accent)';
+    return;
+  }
+
+  cfg.token    = document.getElementById('s-token').value.trim();
+  cfg.topicCpt = document.getElementById('s-cpt').value.trim();
+  cfg.topicDpt = document.getElementById('s-dpt').value.trim();
+  cfg.topicAa  = document.getElementById('s-aa').value.trim();
+  cfg.topicCmd = document.getElementById('s-cmd').value.trim();
+  saveCfg();
+
+  if (newPwd) {
+    localStorage.setItem(PWD_KEY, newPwd);
+    document.getElementById('s-newpwd').value  = '';
+    document.getElementById('s-newpwd2').value = '';
+  }
+
+  fb.style.color = 'var(--dpt)';
+  fb.textContent = '✅ Impostazioni salvate';
+  setTimeout(function () { fb.textContent = ''; }, 3000);
+
+  /* Restart SSE and re-register push with updated topics */
+  startSSE();
+  resubscribePush();
+}
+
+/* ── Service Worker ── */
+var _swReg = null;
+
+function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').then(function (reg) {
+    _swReg = reg;
+    reg.update();
+  }).catch(function (e) { console.warn('SW:', e); });
+}
+
+function listenSWMessages() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (!e.data) return;
+    if (e.data.type === 'PUSH_SOUND') playTone(e.data.topic || '');
+    if (e.data.type === 'NOTIFICATION_CLICK') {
+      switchTab('feed', document.getElementById('tab-btn-feed'));
+    }
+  });
+}
+
+/* ── Web Push ── */
+function updatePushStatusBar() {
+  var bar = document.getElementById('push-status-bar');
+  var btn = document.getElementById('push-subscribe-btn');
+
+  if (!('Notification' in window) || !('PushManager' in window)) {
+    bar.innerHTML = '<div class="push-status denied">⚠️ Notifiche push non supportate in questo browser.</div>';
+    btn.style.display = 'none';
+    return;
+  }
+  var p = Notification.permission;
+  if (p === 'granted') {
+    bar.innerHTML = '<div class="push-status granted">✅ Notifiche push attive</div>';
+    btn.textContent = '🔔 Aggiorna Sottoscrizione';
+  } else if (p === 'denied') {
+    bar.innerHTML = '<div class="push-status denied">🚫 Notifiche bloccate — abilitale nelle impostazioni del browser.</div>';
+    btn.style.display = 'none';
+  } else {
+    bar.innerHTML = '<div class="push-status default">🔔 Premi il pulsante per ricevere notifiche in background.</div>';
+  }
+}
+
+function subscribePush() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    document.getElementById('push-info').textContent = '❌ Web Push non supportato su questo browser.';
+    return;
+  }
+  Notification.requestPermission().then(function (perm) {
+    updatePushStatusBar();
+    if (perm !== 'granted') return;
+    (function waitReg(tries) {
+      if (_swReg) { doSubscribe(_swReg); return; }
+      if (tries <= 0) { document.getElementById('push-info').textContent = '❌ Service Worker non ancora pronto, riprova.'; return; }
+      setTimeout(function () { waitReg(tries - 1); }, 500);
+    }(10));
+  });
+}
+
+function urlB64ToUint8(b64) {
+  var padding = '='.repeat((4 - b64.length % 4) % 4);
+  var raw = atob((b64 + padding).replace(/-/g, '+').replace(/_/g, '/'));
+  var out = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+function doSubscribe(reg) {
+  var info = document.getElementById('push-info');
+  reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8(VAPID_KEY) })
+    .then(function (sub) {
+      var topics = [cfg.topicCpt, cfg.topicDpt, cfg.topicAa].filter(Boolean).map(function (t) { return t.trim(); });
+      if (!topics.length) {
+        info.style.color = 'var(--aa)';
+        info.textContent = '⚠️ Configura almeno un topic prima di attivare le notifiche push.';
+        return;
+      }
+      var subJson = sub.toJSON();
+      Promise.all(topics.map(function (t) { return registerNtfyPush(t, subJson); }))
+        .then(function () {
+          updatePushStatusBar();
+          info.style.color = 'var(--dpt)';
+          info.textContent = '✅ Sottoscrizione completata per ' + topics.length + ' topic.';
+        })
+        .catch(function (err) {
+          info.style.color = 'var(--accent)';
+          info.textContent = '❌ ' + err.message;
+        });
+    })
+    .catch(function (err) {
+      info.style.color = 'var(--accent)';
+      info.textContent = '❌ ' + err.message;
+    });
+}
+
+function registerNtfyPush(topic, subJson) {
+  var headers = { 'Content-Type': 'application/json' };
+  if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
+  return fetch(NTFY_BASE + '/v1/web-push/subscriptions', {
+    method: 'PUT',
+    headers: headers,
+    body: JSON.stringify({
+      topics: [topic],
+      pushSubscription: {
+        endpoint: subJson.endpoint,
+        keys: { auth: subJson.keys.auth, p256dh: subJson.keys.p256dh }
+      }
+    })
+  }).then(function (res) {
+    if (!res.ok) throw new Error('ntfy ' + res.status + ' su "' + topic + '"');
+  });
+}
+
+function resubscribePush() {
+  if (!('serviceWorker' in navigator) || !_swReg) return;
+  if (Notification.permission !== 'granted') return;
+  _swReg.pushManager.getSubscription().then(function (sub) {
+    if (!sub) return;
+    var subJson = sub.toJSON();
+    [cfg.topicCpt, cfg.topicDpt, cfg.topicAa].filter(Boolean).forEach(function (t) {
+      registerNtfyPush(t.trim(), subJson).catch(function (e) { console.warn(e); });
+    });
+  });
+}
+
+/* ── Audio tones ── */
+var _actx = null;
+function playTone(qKey) {
+  try {
+    if (!_actx) _actx = new (window.AudioContext || window.webkitAudioContext)();
+    var osc  = _actx.createOscillator();
+    var gain = _actx.createGain();
+    osc.connect(gain);
+    gain.connect(_actx.destination);
+    var freq = qKey.includes('cpt') ? 880 : qKey.includes('dpt') ? 660 : qKey.includes('aa') ? 520 : 440;
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    var now = _actx.currentTime;
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc.start(now);
+    osc.stop(now + 0.5);
+  } catch (e) {}
+}
+
+/* ── Boot ── */
+checkLogin();
+</script>
+</body>
+</html>

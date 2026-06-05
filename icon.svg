@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#0d1117" rx="32"/>
+  <rect x="0" y="0" width="192" height="12" fill="#e94560" rx="4"/>
+  <text x="96" y="115" font-family="Arial,sans-serif" font-size="72" font-weight="bold"
+        fill="#e94560" text-anchor="middle">PC</text>
+  <text x="96" y="155" font-family="Arial,sans-serif" font-size="22"
+        fill="#8b9cb3" text-anchor="middle">AWAY</text>
+</svg>
