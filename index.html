@@ -391,7 +391,8 @@ function switchTab(name, btn) {
 }
 
 /* ── SSE feed (fetch + ReadableStream) ── */
-var _sseAborts = [];
+var _sseAborts  = [];
+var _sseLastId  = {}; // topic → ultimo message id ricevuto (evita ri-consegna su riconnessione)
 
 function stopSSE() {
   _sseAborts.forEach(function (ac) { try { ac.abort(); } catch (e) {} });
@@ -401,6 +402,7 @@ function stopSSE() {
 
 function startSSE() {
   stopSSE();
+  _sseLastId = {}; // reset ids — nuova sessione
   /* Il topic CMD è solo per INVIARE comandi — non lo ascoltiamo in SSE */
   var topics = [
     { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
@@ -420,7 +422,11 @@ function startSSE() {
       if (ac.signal.aborted) return;
       setTimeout(function () {
         if (ac.signal.aborted) return;
-        var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=0&since=1m';
+        /* Prima connessione: niente since → solo messaggi nuovi da ora.
+           Riconnessione: since=<lastId> → riprende dal punto esatto senza ri-consegnare vecchi msg. */
+        var lastId = _sseLastId[t.id];
+        var sinceParam = lastId ? ('&since=' + encodeURIComponent(lastId)) : '';
+        var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=0' + sinceParam;
         var headers = {};
         if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
 
@@ -447,6 +453,7 @@ function startSSE() {
                   if (!line) return;
                   try {
                     var msg = JSON.parse(line);
+                    if (msg.id) _sseLastId[t.id] = msg.id; // aggiorna cursore
                     if (msg.event === 'message') addFeedItem(msg, t.key, t.label);
                   } catch (e) {}
                 });
