@@ -108,6 +108,12 @@
     .fi-time { font-size: 11px; color: var(--text2); flex-shrink: 0; margin-left: 8px; padding-top: 2px; }
     .fi-body { font-size: 13px; color: var(--text2); line-height: 1.45; word-break: break-word; }
     .fi-img { max-width: 100%; border-radius: 7px; margin-top: 8px; display: block; }
+    .fi-order-btn {
+      margin-top: 10px; padding: 8px 18px; border-radius: 8px;
+      background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+      border: none; cursor: pointer; display: block; width: 100%;
+    }
+    .fi-order-btn:active { background: var(--accent2); }
     @keyframes fadeSlide { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:none; } }
 
     /* ── Commands ── */
@@ -132,6 +138,9 @@
     .cmd-btn.info:active    { background: rgba(79,195,247,.08); }
     .cmd-btn.warn:active    { background: rgba(255,183,77,.08); }
     .cmd-btn.purple:active  { background: rgba(206,147,216,.08); }
+    /* Stato tasti: illuminato = ON, spento = OFF */
+    .cmd-btn.state-on  { box-shadow: 0 0 10px currentColor; opacity: 1; }
+    .cmd-btn.state-off { opacity: 0.35; }
     .cmd-feedback { font-size: 13px; padding: 8px 0 2px; min-height: 22px; text-align: center; }
 
     /* ── Settings ── */
@@ -215,30 +224,30 @@
       <div class="cmd-section">
         <div class="section-title">Stato &amp; Controllo</div>
         <div class="cmd-grid">
-          <button class="cmd-btn info"    onclick="sendCmd('stato')">     <span class="bicon">📊</span>Stato</button>
-          <button class="cmd-btn danger"  onclick="sendCmd('disattiva')"> <span class="bicon">⏹️</span>Disattiva</button>
-          <button class="cmd-btn success" onclick="sendCmd('avvia')">     <span class="bicon">▶️</span>Avvia</button>
-          <button class="cmd-btn purple"  onclick="sendCmd('fullauto')">  <span class="bicon">⚡</span>Full Auto</button>
+          <button class="cmd-btn info"    onclick="sendCmd('stato')">                          <span class="bicon">📊</span>Stato</button>
+          <button class="cmd-btn danger"  onclick="sendCmd('disattiva')">                      <span class="bicon">⏹️</span>Disattiva</button>
+          <button class="cmd-btn success" onclick="sendCmd('avvia')" data-state-key="armed">   <span class="bicon">▶️</span>Avvia</button>
+          <button class="cmd-btn purple"  onclick="sendCmd('fullauto')" data-state-key="fullauto"><span class="bicon">⚡</span>Full Auto</button>
         </div>
       </div>
 
       <div class="cmd-section">
         <div class="section-title">Toggle Auto Refresh</div>
         <div class="cmd-grid">
-          <button class="cmd-btn info"    onclick="sendCmd('ar rfy')"> <span class="bicon">🔵</span>Toggle AR CPT</button>
-          <button class="cmd-btn success" onclick="sendCmd('ar afa')"> <span class="bicon">🟢</span>Toggle AR DPT</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('ar ai')">  <span class="bicon">🟠</span>Toggle AR AA</button>
-          <button class="cmd-btn danger"  onclick="sendCmd('ar off')"> <span class="bicon">🔴</span>AR OFF Tutti</button>
+          <button class="cmd-btn info"    onclick="sendCmd('ar rfy')"><span class="bicon">🔵</span>AR RFY</button>
+          <button class="cmd-btn success" onclick="sendCmd('ar afa')"><span class="bicon">🟢</span>AR AFA</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('ar ai')"> <span class="bicon">🟠</span>AR AI</button>
+          <button class="cmd-btn danger"  onclick="sendCmd('ar off')"><span class="bicon">🔴</span>AR OFF Tutti</button>
         </div>
       </div>
 
       <div class="cmd-section">
         <div class="section-title">Toggle Scheduler / Rilevazione</div>
         <div class="cmd-grid">
-          <button class="cmd-btn success" onclick="sendCmd('det aadpt')">  <span class="bicon">📡</span>Toggle Det AA/DPT</button>
-          <button class="cmd-btn info"    onclick="sendCmd('det rfy')">    <span class="bicon">📡</span>Toggle Det CPT</button>
-          <button class="cmd-btn info"    onclick="sendCmd('sched rfy')">  <span class="bicon">🕐</span>Toggle Sched CPT</button>
-          <button class="cmd-btn success" onclick="sendCmd('sched aadpt')"><span class="bicon">🕑</span>Toggle Sched AA/DPT</button>
+          <button class="cmd-btn success" onclick="sendCmd('det aadpt')"  data-state-key="det-aadpt"> <span class="bicon">📡</span>Autodetect AI/AFA</button>
+          <button class="cmd-btn info"    onclick="sendCmd('det rfy')"    data-state-key="det-rfy">   <span class="bicon">📡</span>AR RFY da Autod. AI/AFA</button>
+          <button class="cmd-btn info"    onclick="sendCmd('sched rfy')"  data-state-key="sched-rfy"> <span class="bicon">🕐</span>Scheduler RFY On/Off</button>
+          <button class="cmd-btn success" onclick="sendCmd('sched aadpt')" data-state-key="sched-aadpt"><span class="bicon">🕑</span>Scheduler AI/AFA On/Off</button>
         </div>
       </div>
 
@@ -480,6 +489,8 @@ function setConnDot(state) {
 }
 
 /* ── Feed items ── */
+var _orderActions = {}; // msgId → action object
+
 function addFeedItem(msg, qKey, qLabel) {
   var list  = document.getElementById('feed-list');
   var empty = document.getElementById('feed-empty');
@@ -493,6 +504,23 @@ function addFeedItem(msg, qKey, qLabel) {
     imgHtml = '<img class="fi-img" src="' + esc(msg.attachment.url) + '" alt="" loading="lazy">';
   }
 
+  /* Pulsante Ordina — presente solo se l'azione ntfy è nell'array actions */
+  var orderHtml = '';
+  if (msg.actions) {
+    for (var ai = 0; ai < msg.actions.length; ai++) {
+      var a = msg.actions[ai];
+      if (a && (a.label || '').indexOf('Ordina') !== -1 && a.url && a.body) {
+        var actKey = 'a_' + (msg.id || Date.now() + ai);
+        _orderActions[actKey] = a;
+        orderHtml = '<button class="fi-order-btn" onclick="execOrder(\'' + actKey + '\')">🎯 Ordina</button>';
+        break;
+      }
+    }
+  }
+
+  /* CMD topic: prova a estrarre stato tasti dalla risposta [BOT] */
+  if (qKey === 'cmd') parseBotStato(msg);
+
   var el = document.createElement('div');
   el.className = 'feed-item ' + qKey;
   el.innerHTML =
@@ -504,14 +532,45 @@ function addFeedItem(msg, qKey, qLabel) {
       '<span class="fi-time">' + ts + '</span>' +
     '</div>' +
     '<div class="fi-body">' + esc(msg.message || '') + '</div>' +
-    imgHtml;
+    imgHtml + orderHtml;
 
   list.insertBefore(el, list.firstChild);
-  /* Trim to max */
   while (list.children.length > MAX_FEED + 1) list.removeChild(list.lastChild);
-
-  /* In-app sound */
   playTone(qKey);
+}
+
+function execOrder(key) {
+  var a = _orderActions[key];
+  if (!a) return;
+  var h = { 'Content-Type': 'application/json' };
+  if (cfg.token) h['Authorization'] = 'Bearer ' + cfg.token.trim();
+  fetch(a.url, { method: a.method || 'POST', headers: h, body: a.body })
+    .then(function(r) { showFeedback(r.ok ? '✅ Ordine inviato!' : '❌ HTTP ' + r.status, !r.ok); })
+    .catch(function(e) { showFeedback('❌ ' + e.message, true); });
+}
+
+/* ── Stato tasti da risposta [BOT] Stato ── */
+function parseBotStato(msg) {
+  var title = msg.title || '';
+  var body  = msg.message || '';
+  if (title.indexOf('Stato') === -1) return;
+  updateBtnStates({
+    'armed':       body.indexOf('Cecchino attivo: ✅') !== -1,
+    'fullauto':    body.indexOf('Full Auto: ✅') !== -1,
+    'sched-rfy':   body.indexOf('Sched RFY: ✅') !== -1,
+    'det-rfy':     body.indexOf('Det RFY: ✅') !== -1,
+    'det-aadpt':   body.indexOf('Det AA/DPT:') !== -1 && body.indexOf('✅') !== -1,
+    'sched-aadpt': body.indexOf('Sched AA/DPT: ✅') !== -1
+  });
+}
+
+function updateBtnStates(states) {
+  document.querySelectorAll('[data-state-key]').forEach(function(btn) {
+    var k = btn.getAttribute('data-state-key');
+    if (!(k in states)) return;
+    btn.classList.toggle('state-on',  states[k]);
+    btn.classList.toggle('state-off', !states[k]);
+  });
 }
 
 function esc(s) {
