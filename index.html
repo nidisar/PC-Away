@@ -605,9 +605,47 @@ function esc(s) {
 }
 
 /* ── Commands ── */
+/* Mappa comando → state-key per update ottimistico immediato */
+var _cmdStateMap = {
+  'ar rfy':     'ar-rfy',
+  'ar afa':     'ar-afa',
+  'ar ai':      'ar-ai',
+  'fullauto':   'fullauto',
+  'sched rfy':  'sched-rfy',
+  'sched aadpt':'sched-aadpt',
+  'det rfy':    'det-rfy',
+  'det aadpt':  'det-aadpt'
+};
+
 function sendCmd(cmd) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) { showFeedback('⚠️ Topic comandi non configurato — vai in Impostazioni', true); return; }
+
+  /* Update ottimistico: inverti subito lo stato visivo del tasto */
+  var sk = _cmdStateMap[cmd];
+  if (sk) {
+    var btn = document.querySelector('[data-state-key="' + sk + '"]');
+    if (btn) {
+      var wasOn = btn.classList.contains('state-on');
+      btn.classList.toggle('state-on',  !wasOn);
+      btn.classList.toggle('state-off',  wasOn);
+    }
+  }
+  if (cmd === 'ar off') {
+    ['ar-rfy','ar-afa','ar-ai'].forEach(function(k) {
+      var b = document.querySelector('[data-state-key="' + k + '"]');
+      if (b) { b.classList.remove('state-on'); b.classList.add('state-off'); }
+    });
+  }
+  if (cmd === 'disattiva') {
+    document.querySelectorAll('[data-state-key]').forEach(function(b) {
+      b.classList.remove('state-on'); b.classList.add('state-off');
+    });
+  }
+  if (cmd === 'avvia') {
+    var ab = document.querySelector('[data-state-key="armed"]');
+    if (ab) { ab.classList.add('state-on'); ab.classList.remove('state-off'); }
+  }
 
   var cmdHeaders = { 'Content-Type': 'text/plain' };
   if (cfg.token) cmdHeaders['Authorization'] = 'Bearer ' + cfg.token.trim();
@@ -618,7 +656,16 @@ function sendCmd(cmd) {
     body: cmd
   }).then(function (res) {
     if (res.ok) showFeedback('✅ "' + cmd + '" inviato', false);
-    else showFeedback('❌ HTTP ' + res.status, true);
+    else {
+      /* Rollback ottimistico in caso di errore */
+      if (sk) {
+        var btn2 = document.querySelector('[data-state-key="' + sk + '"]');
+        if (btn2 && btn2.classList.contains('state-on') !== (sk ? !btn2.classList.contains('state-off') : false)) {
+          btn2.classList.toggle('state-on'); btn2.classList.toggle('state-off');
+        }
+      }
+      showFeedback('❌ HTTP ' + res.status, true);
+    }
   }).catch(function (err) {
     showFeedback('❌ ' + err.message, true);
   });
