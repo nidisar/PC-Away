@@ -215,40 +215,37 @@
       <div class="cmd-section">
         <div class="section-title">Stato &amp; Controllo</div>
         <div class="cmd-grid">
-          <button class="cmd-btn info"    onclick="sendCmd('stato')">   <span class="bicon">📊</span>Stato</button>
-          <button class="cmd-btn success" onclick="sendCmd('avvia')">   <span class="bicon">▶️</span>Avvia</button>
-          <button class="cmd-btn danger"  onclick="sendCmd('stop')">    <span class="bicon">⏹️</span>Stop</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('reload')">  <span class="bicon">🔄</span>Reload</button>
+          <button class="cmd-btn info"    onclick="sendCmd('stato')">     <span class="bicon">📊</span>Stato</button>
+          <button class="cmd-btn success" onclick="sendCmd('avvia')">     <span class="bicon">▶️</span>Avvia</button>
+          <button class="cmd-btn danger"  onclick="sendCmd('disattiva')"> <span class="bicon">⏹️</span>Disattiva</button>
+          <button class="cmd-btn warn"    onclick="sendCmd('ar off')">    <span class="bicon">🔴</span>AR OFF tutti</button>
         </div>
       </div>
 
       <div class="cmd-section">
-        <div class="section-title">Auto Refresh</div>
+        <div class="section-title">Toggle Auto Refresh</div>
         <div class="cmd-grid">
-          <button class="cmd-btn success" onclick="sendCmd('ar-on')">      <span class="bicon">🟢</span>AR ON</button>
-          <button class="cmd-btn danger"  onclick="sendCmd('ar-off')">     <span class="bicon">🔴</span>AR OFF</button>
-          <button class="cmd-btn info"    onclick="sendCmd('ar-cpt-on')">  <span class="bicon">🔵</span>CPT ON</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('ar-cpt-off')"> <span class="bicon">⭕</span>CPT OFF</button>
-          <button class="cmd-btn info"    onclick="sendCmd('ar-dpt-on')">  <span class="bicon">🟩</span>DPT ON</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('ar-dpt-off')"> <span class="bicon">🟨</span>DPT OFF</button>
-          <button class="cmd-btn info"    onclick="sendCmd('ar-aa-on')">   <span class="bicon">🟠</span>AA ON</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('ar-aa-off')">  <span class="bicon">⚪</span>AA OFF</button>
+          <button class="cmd-btn info"   onclick="sendCmd('ar rfy')"> <span class="bicon">🔵</span>Toggle AR CPT</button>
+          <button class="cmd-btn success" onclick="sendCmd('ar afa')"> <span class="bicon">🟢</span>Toggle AR DPT</button>
+          <button class="cmd-btn warn"   onclick="sendCmd('ar ai')">  <span class="bicon">🟠</span>Toggle AR AA</button>
+          <button class="cmd-btn purple" onclick="sendCmd('fullauto')"><span class="bicon">⚡</span>Toggle Full Auto</button>
         </div>
       </div>
 
       <div class="cmd-section">
-        <div class="section-title">Full Auto</div>
+        <div class="section-title">Toggle Scheduler / Rilevazione</div>
         <div class="cmd-grid">
-          <button class="cmd-btn success" onclick="sendCmd('fullauto-on')">  <span class="bicon">⚡</span>Full Auto ON</button>
-          <button class="cmd-btn danger"  onclick="sendCmd('fullauto-off')"> <span class="bicon">💤</span>Full Auto OFF</button>
+          <button class="cmd-btn info"   onclick="sendCmd('sched rfy')">  <span class="bicon">🕐</span>Toggle Sched CPT</button>
+          <button class="cmd-btn success" onclick="sendCmd('sched aadpt')"><span class="bicon">🕑</span>Toggle Sched AA/DPT</button>
+          <button class="cmd-btn info"   onclick="sendCmd('det rfy')">    <span class="bicon">📡</span>Toggle Det CPT</button>
+          <button class="cmd-btn success" onclick="sendCmd('det aadpt')"> <span class="bicon">📡</span>Toggle Det AA/DPT</button>
         </div>
       </div>
 
       <div class="cmd-section">
-        <div class="section-title">Scheduler</div>
+        <div class="section-title">Help</div>
         <div class="cmd-grid">
-          <button class="cmd-btn purple"  onclick="sendCmd('sched-on')">  <span class="bicon">🕐</span>Sched ON</button>
-          <button class="cmd-btn warn"    onclick="sendCmd('sched-off')"> <span class="bicon">🕑</span>Sched OFF</button>
+          <button class="cmd-btn purple" onclick="sendCmd('help')"><span class="bicon">❓</span>Help</button>
         </div>
       </div>
 
@@ -403,11 +400,12 @@ function stopSSE() {
 function startSSE() {
   stopSSE();
   _sseLastId = {}; // reset ids — nuova sessione
-  /* Il topic CMD è solo per INVIARE comandi — non lo ascoltiamo in SSE */
+  /* CMD topic: ascoltiamo per vedere le risposte di PhantomCore */
   var topics = [
     { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
     { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
-    { id: cfg.topicAa,  key: 'aa',  label: 'AA' }
+    { id: cfg.topicAa,  key: 'aa',  label: 'AA'  },
+    { id: cfg.topicCmd, key: 'cmd', label: 'CMD' }
   ].filter(function (t) { return t.id && t.id.trim(); });
 
   if (!topics.length) { setConnDot('off'); return; }
