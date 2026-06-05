@@ -1,5 +1,5 @@
 /* PC Away — Service Worker v1.1 */
-const CACHE = 'pc-away-v2';
+const CACHE = 'pc-away-v3';
 /* Path base dinamico — funziona sia su localhost che su GitHub Pages /PC-Away/ */
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
