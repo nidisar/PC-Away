@@ -518,10 +518,13 @@ function sendCmd(cmd) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) { showFeedback('⚠️ Topic comandi non configurato — vai in Impostazioni', true); return; }
 
+  var cmdHeaders = { 'Content-Type': 'text/plain' };
+  if (cfg.token) cmdHeaders['Authorization'] = 'Bearer ' + cfg.token.trim();
+
   fetch(NTFY_BASE + '/' + topic, {
     method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ cmd: cmd, src: 'pc-away', ts: Date.now() })
+    headers: cmdHeaders,
+    body: cmd
   }).then(function (res) {
     if (res.ok) showFeedback('✅ "' + cmd + '" inviato', false);
     else showFeedback('❌ HTTP ' + res.status, true);
