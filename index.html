@@ -480,6 +480,7 @@ var FB_API_KEY  = 'AIzaSyBjQ-Ev2RdlimCKg6nl6Wxu3bCGtdiELnY';
 var FB_DB_URL   = 'https://phantom-core-cf159-default-rtdb.europe-west1.firebasedatabase.app';
 var DROPS_PAGE  = 80;
 var HAUL_PAGE   = 60;
+var SSEID_KEY   = 'pcaway_sseid';
 
 /* ── Config ── */
 var cfg = { token:'', topicCpt:'', topicDpt:'', topicAa:'', topicCmd:'',
@@ -504,7 +505,14 @@ document.getElementById('pwd-input').addEventListener('keydown', function(e) { i
 function showApp() { loadCfg(); document.getElementById('login-screen').style.display = 'none'; document.getElementById('app').classList.add('visible'); initApp(); }
 
 /* ── Init ── */
-function initApp() { loadSettingsToForm(); updatePushStatusBar(); startSSE(); registerSW(); listenSWMessages(); }
+function initApp() {
+  loadSettingsToForm(); updatePushStatusBar();
+  loadSseIds(); startSSE();
+  registerSW(); listenSWMessages();
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') startSSE();
+  });
+}
 
 /* ── Tabs ── */
 function switchTab(name, btn) {
@@ -541,10 +549,13 @@ function parseHaulFromText(body) {
 var _sseAborts = [];
 var _sseLastId = {};
 
+function saveSseIds() { try { localStorage.setItem(SSEID_KEY, JSON.stringify(_sseLastId)); } catch(e) {} }
+function loadSseIds() { try { var s = localStorage.getItem(SSEID_KEY); if (s) _sseLastId = JSON.parse(s); } catch(e) {} }
+
 function stopSSE() { _sseAborts.forEach(function(ac){ try{ac.abort();}catch(e){} }); _sseAborts = []; setConnDot('off'); }
 
 function startSSE() {
-  stopSSE(); _sseLastId = {};
+  stopSSE();
   var topics = [
     { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
     { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
@@ -574,7 +585,7 @@ function startSSE() {
                   line = line.trim(); if (!line) return;
                   try {
                     var msg = JSON.parse(line);
-                    if (msg.id) _sseLastId[t.id] = msg.id;
+                    if (msg.id) { _sseLastId[t.id] = msg.id; saveSseIds(); }
                     if (msg.event === 'message') {
                       addFeedItem(msg, t.key, t.label);
                       /* aggiorna haul bar da qualsiasi canale */
@@ -1072,6 +1083,7 @@ function saveSettings() {
   saveCfg();
   if (newPwd) { localStorage.setItem(PWD_KEY, newPwd); document.getElementById('s-newpwd').value=''; document.getElementById('s-newpwd2').value=''; }
   _fData=null; _haulOrders=[]; _allDrops=[]; _fbToken=null; _fbExpiry=0;
+  _sseLastId={}; saveSseIds();
   fb.style.color='var(--dpt)'; fb.textContent='✅ Impostazioni salvate';
   setTimeout(function(){ fb.textContent=''; }, 3000);
   startSSE(); resubscribePush();
