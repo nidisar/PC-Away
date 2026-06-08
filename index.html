@@ -1004,8 +1004,14 @@ function loadHaul(force) {
     .then(function(data) {
       var file=data.files&&data.files[GIST_HAUL_FILE];
       if (!file) throw new Error('File '+GIST_HAUL_FILE+' non trovato.\nFai prima un Haul Sync da PhantomCore.');
-      var rows=JSON.parse(file.content);
-      rows.sort(function(a,b){ var ta=a.ts||(a.date?new Date(a.date).getTime():0); var tb=b.ts||(b.date?new Date(b.date).getTime():0); return tb-ta; });
+      if (file.truncated || !file.content) {
+        return fetch(file.raw_url, { headers: ghHeaders() }).then(function(r){ if(!r.ok) throw new Error('raw_url HTTP '+r.status); return r.text(); }).then(JSON.parse);
+      }
+      return JSON.parse(file.content);
+    })
+    .then(function(rows) {
+      function pd(s){ var m=(s||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():(new Date(s).getTime()||0); }
+      rows.sort(function(a,b){ var ta=a.ts||pd(a.date); var tb=b.ts||pd(b.date); return tb-ta; });
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
     })
