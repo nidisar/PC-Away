@@ -24,6 +24,7 @@
       --dpt:     #81c784;
       --aa:      #ffb74d;
       --cmd:     #ce93d8;
+      --green:   #4caf50;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; overflow: hidden; }
@@ -73,10 +74,10 @@
     }
     .tabbar button {
       flex: 1; padding: 8px 4px 6px; background: none; border: none; border-bottom: 2px solid transparent;
-      color: var(--text2); font-size: 11px; cursor: pointer; transition: color .2s, border-color .2s;
+      color: var(--text2); font-size: 10px; cursor: pointer; transition: color .2s, border-color .2s;
     }
     .tabbar button.active { color: var(--accent); border-bottom-color: var(--accent); }
-    .tabbar button .ticon { font-size: 19px; display: block; margin-bottom: 2px; }
+    .tabbar button .ticon { font-size: 17px; display: block; margin-bottom: 2px; }
 
     /* ── Content ── */
     .content { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
@@ -138,7 +139,6 @@
     .cmd-btn.info:active    { background: rgba(79,195,247,.08); }
     .cmd-btn.warn:active    { background: rgba(255,183,77,.08); }
     .cmd-btn.purple:active  { background: rgba(206,147,216,.08); }
-    /* Stato tasti: illuminato = ON, spento = OFF */
     .cmd-btn.state-on  { box-shadow: 0 0 10px currentColor; opacity: 1; }
     .cmd-btn.state-off { opacity: 0.35; }
     .cmd-feedback { font-size: 13px; padding: 8px 0 2px; min-height: 22px; text-align: center; }
@@ -173,6 +173,123 @@
     .push-status.granted { background: rgba(129,199,132,.1); color: var(--dpt); border: 1px solid rgba(129,199,132,.25); }
     .push-status.denied  { background: rgba(233,69,96,.1);   color: var(--accent); border: 1px solid rgba(233,69,96,.25); }
     .push-status.default { background: rgba(255,183,77,.1);  color: var(--aa);     border: 1px solid rgba(255,183,77,.25); }
+
+    /* ── Filtri ── */
+    .f-section { margin-bottom: 20px; }
+    .f-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .f-section-header .section-title { margin-bottom: 0; }
+    .f-toggle {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+    }
+    .f-toggle input[type=checkbox] { display: none; }
+    .f-toggle-track {
+      width: 36px; height: 20px; border-radius: 10px; background: var(--bg3);
+      border: 1px solid var(--border); position: relative; transition: background .2s;
+    }
+    .f-toggle input:checked + .f-toggle-track { background: var(--green); border-color: var(--green); }
+    .f-toggle-track::after {
+      content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; top: 2px; left: 2px; transition: transform .2s;
+    }
+    .f-toggle input:checked + .f-toggle-track::after { transform: translateX(16px); }
+
+    .f-tag-list { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; min-height: 28px; }
+    .f-tag {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--bg3); border: 1px solid var(--border); border-radius: 16px;
+      padding: 4px 10px; font-size: 12px; color: var(--text);
+    }
+    .f-tag-del {
+      background: none; border: none; color: var(--text2); cursor: pointer;
+      font-size: 14px; line-height: 1; padding: 0; margin-left: 2px;
+    }
+    .f-tag-del:active { color: var(--accent); }
+    .f-add-row { display: flex; gap: 8px; }
+    .f-add-input {
+      flex: 1; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+      font-size: 13px; outline: none;
+    }
+    .f-add-input:focus { border-color: var(--accent); }
+    .f-add-btn {
+      padding: 9px 14px; border-radius: 8px; border: none;
+      background: var(--accent); color: #fff; font-size: 18px; font-weight: 700;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .f-add-btn:active { background: var(--accent2); }
+
+    .f-etv-row { display: flex; align-items: center; gap: 10px; }
+    .f-etv-label { font-size: 13px; color: var(--text2); white-space: nowrap; }
+    .f-etv-input {
+      width: 90px; padding: 9px 12px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+      font-size: 14px; outline: none; text-align: right;
+    }
+    .f-etv-input:focus { border-color: var(--accent); }
+
+    /* Regole avanzate */
+    .f-rules-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+    .f-rule-card {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden;
+    }
+    .f-rule-card.disabled { opacity: 0.5; }
+    .f-rule-head {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; cursor: pointer;
+    }
+    .f-rule-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); word-break: break-word; }
+    .f-rule-toggle { flex-shrink: 0; }
+    .f-rule-del {
+      background: none; border: none; color: var(--text2); font-size: 18px;
+      cursor: pointer; padding: 0 4px; flex-shrink: 0;
+    }
+    .f-rule-del:active { color: var(--accent); }
+    .f-rule-body { display: none; padding: 0 12px 12px; border-top: 1px solid var(--border); }
+    .f-rule-body.open { display: block; }
+    .f-rule-field { margin-top: 10px; }
+    .f-rule-field label { font-size: 11px; color: var(--text2); display: block; margin-bottom: 4px; }
+    .f-rule-field input {
+      width: 100%; padding: 8px 10px; border-radius: 7px;
+      border: 1px solid var(--border); background: var(--bg3); color: var(--text);
+      font-size: 13px; outline: none;
+    }
+    .f-rule-field input:focus { border-color: var(--accent); }
+    .f-rule-hint { font-size: 10px; color: var(--text2); margin-top: 3px; }
+
+    .f-add-rule-btn {
+      width: 100%; padding: 11px; border-radius: 8px; border: 1px dashed var(--border);
+      background: none; color: var(--text2); font-size: 13px;
+      cursor: pointer; margin-bottom: 6px;
+    }
+    .f-add-rule-btn:active { background: var(--bg2); color: var(--text); }
+
+    .f-status {
+      padding: 10px 14px; border-radius: 8px; margin-bottom: 14px;
+      font-size: 13px; text-align: center;
+    }
+    .f-status.ok   { background: rgba(76,175,80,.1);  color: var(--green); border: 1px solid rgba(76,175,80,.25); }
+    .f-status.err  { background: rgba(233,69,96,.1);  color: var(--accent); border: 1px solid rgba(233,69,96,.25); }
+    .f-status.warn { background: rgba(255,183,77,.1); color: var(--aa);    border: 1px solid rgba(255,183,77,.25); }
+    .f-save-btn {
+      width: 100%; padding: 14px; border-radius: 10px;
+      background: var(--green); color: #fff; font-size: 15px; font-weight: 700;
+      border: none; cursor: pointer; margin-bottom: 8px;
+    }
+    .f-save-btn:active { filter: brightness(.9); }
+    .f-save-btn:disabled { opacity: .5; cursor: default; }
+    .f-reload-btn {
+      width: 100%; padding: 11px; border-radius: 10px;
+      background: var(--bg2); color: var(--text2); font-size: 13px;
+      border: 1px solid var(--border); cursor: pointer;
+    }
+    .f-reload-btn:active { background: var(--bg3); }
+    .f-not-configured {
+      text-align: center; padding: 40px 20px; color: var(--text2); font-size: 13px; line-height: 1.6;
+    }
   </style>
 </head>
 <body>
@@ -204,8 +321,11 @@
     <button id="tab-btn-cmds" onclick="switchTab('cmds',this)">
       <span class="ticon">🎮</span>Comandi
     </button>
+    <button id="tab-btn-filters" onclick="switchTab('filters',this);loadFilters()">
+      <span class="ticon">🔧</span>Filtri
+    </button>
     <button id="tab-btn-settings" onclick="switchTab('settings',this)">
-      <span class="ticon">⚙️</span>Impostazioni
+      <span class="ticon">⚙️</span>Settings
     </button>
   </div>
 
@@ -261,6 +381,82 @@
       <div class="cmd-feedback" id="cmd-feedback"></div>
     </div>
 
+    <!-- ── FILTRI ── -->
+    <div class="tab-panel" id="tab-filters">
+      <div id="filters-not-configured" class="f-not-configured" style="display:none">
+        ⚙️ Configura il <strong>GitHub Token</strong> e il <strong>Config Gist ID</strong> nelle Impostazioni per gestire i filtri da remoto.
+      </div>
+      <div id="filters-loading" class="f-not-configured" style="display:none">
+        ⏳ Caricamento filtri…
+      </div>
+      <div id="filters-body" style="display:none">
+        <div id="f-status-bar"></div>
+
+        <!-- ── Blacklist Keywords ── -->
+        <div class="f-section">
+          <div class="f-section-header">
+            <div class="section-title">🚫 Blacklist Keywords</div>
+            <label class="f-toggle" title="Abilita/disabilita blacklist">
+              <input type="checkbox" id="f-bl-enabled">
+              <div class="f-toggle-track"></div>
+            </label>
+          </div>
+          <div class="f-tag-list" id="f-bl-list"></div>
+          <div class="f-add-row">
+            <input class="f-add-input" id="f-bl-input" type="text" placeholder="nuova keyword…" autocapitalize="none" autocorrect="off">
+            <button class="f-add-btn" onclick="addTag('bl')">+</button>
+          </div>
+        </div>
+
+        <!-- ── Blacklist ETV ── -->
+        <div class="f-section">
+          <div class="f-section-header">
+            <div class="section-title">💰 Blacklist ETV</div>
+            <label class="f-toggle" title="Abilita/disabilita blacklist ETV">
+              <input type="checkbox" id="f-bletv-enabled">
+              <div class="f-toggle-track"></div>
+            </label>
+          </div>
+          <div class="f-etv-row">
+            <span class="f-etv-label">Nascondi se ETV ≤ €</span>
+            <input class="f-etv-input" id="f-bletv-max" type="number" min="0" step="0.5" placeholder="0">
+          </div>
+        </div>
+
+        <!-- ── Brand VIP ── -->
+        <div class="f-section">
+          <div class="f-section-header">
+            <div class="section-title">⭐ Brand VIP</div>
+            <label class="f-toggle" title="Abilita/disabilita Brand VIP">
+              <input type="checkbox" id="f-brands-enabled">
+              <div class="f-toggle-track"></div>
+            </label>
+          </div>
+          <div class="f-tag-list" id="f-brands-list"></div>
+          <div class="f-add-row">
+            <input class="f-add-input" id="f-brands-input" type="text" placeholder="brand name…" autocapitalize="words" autocorrect="off">
+            <button class="f-add-btn" onclick="addTag('brands')">+</button>
+          </div>
+        </div>
+
+        <!-- ── Regole Avanzate ── -->
+        <div class="f-section">
+          <div class="f-section-header">
+            <div class="section-title">📋 Regole Avanzate</div>
+            <label class="f-toggle" title="Abilita/disabilita regole avanzate">
+              <input type="checkbox" id="f-rules-enabled">
+              <div class="f-toggle-track"></div>
+            </label>
+          </div>
+          <div class="f-rules-list" id="f-rules-list"></div>
+          <button class="f-add-rule-btn" onclick="addRule()">＋ Nuova regola</button>
+        </div>
+
+        <button class="f-save-btn" id="f-save-btn" onclick="saveFilters()">💾 Salva e applica a PhantomCore</button>
+        <button class="f-reload-btn" onclick="loadFilters(true)">↺ Ricarica dal Gist</button>
+      </div>
+    </div>
+
     <!-- ── SETTINGS ── -->
     <div class="tab-panel" id="tab-settings">
 
@@ -303,6 +499,19 @@
       </div>
 
       <div class="settings-section">
+        <div class="section-title">☁️ GitHub Gist (Filtri)</div>
+        <div class="settings-row">
+          <div class="s-label">GitHub Token (scope: gist)</div>
+          <input class="s-input" type="password" id="s-gh-token" placeholder="github_pat_…" autocomplete="off">
+        </div>
+        <div class="settings-row">
+          <div class="s-label">Config Gist ID</div>
+          <input class="s-input" type="text" id="s-gist-id" placeholder="abc123def456…" autocomplete="off" autocorrect="off" autocapitalize="none">
+        </div>
+        <p class="s-info">Stesso Gist ID usato in PhantomCore → Impostazioni → Cloud. Il token deve avere il permesso <strong>gist</strong>.</p>
+      </div>
+
+      <div class="settings-section">
         <div class="section-title">Sicurezza</div>
         <div class="settings-row">
           <div class="s-label">Nuova Password</div>
@@ -330,12 +539,13 @@ var VAPID_KEY  = 'BEMjM0sNxh41x0a6Lz3YaqkJ7AUhZefxsOQgw-at69i0fM1CybVBcj7-QQXf4N
 var STORE_KEY  = 'pcaway_config';
 var PWD_KEY    = 'pcaway_pwd';
 var MAX_FEED   = 60;
+var GIST_FILE  = 'uvcomp_config.json';
 
 /* ── Config ── */
-var cfg = { token: '', topicCpt: '', topicDpt: '', topicAa: '', topicCmd: '' };
+var cfg = { token: '', topicCpt: '', topicDpt: '', topicAa: '', topicCmd: '', ghToken: '', gistId: '' };
 
 function loadCfg() {
-  try { var s = localStorage.getItem(STORE_KEY); if (s) cfg = JSON.parse(s); } catch (e) {}
+  try { var s = localStorage.getItem(STORE_KEY); if (s) cfg = Object.assign(cfg, JSON.parse(s)); } catch (e) {}
 }
 function saveCfg() { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); }
 
@@ -348,11 +558,7 @@ function authHeaders(extra) {
 /* ── Login ── */
 function checkLogin() {
   var saved = localStorage.getItem(PWD_KEY);
-  if (!saved) {
-    /* First run — no password yet; go straight to app */
-    showApp();
-  }
-  /* else login screen already visible (default state) */
+  if (!saved) { showApp(); }
 }
 
 function doLogin() {
@@ -398,7 +604,7 @@ function switchTab(name, btn) {
 
 /* ── SSE feed (fetch + ReadableStream) ── */
 var _sseAborts  = [];
-var _sseLastId  = {}; // topic → ultimo message id ricevuto (evita ri-consegna su riconnessione)
+var _sseLastId  = {};
 
 function stopSSE() {
   _sseAborts.forEach(function (ac) { try { ac.abort(); } catch (e) {} });
@@ -408,8 +614,7 @@ function stopSSE() {
 
 function startSSE() {
   stopSSE();
-  _sseLastId = {}; // reset ids — nuova sessione
-  /* CMD topic: ascoltiamo per vedere le risposte di PhantomCore */
+  _sseLastId = {};
   var topics = [
     { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
     { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
@@ -429,8 +634,6 @@ function startSSE() {
       if (ac.signal.aborted) return;
       setTimeout(function () {
         if (ac.signal.aborted) return;
-        /* Prima connessione: niente since → solo messaggi nuovi da ora.
-           Riconnessione: since=<lastId> → riprende dal punto esatto senza ri-consegnare vecchi msg. */
         var lastId = _sseLastId[t.id];
         var sinceParam = lastId ? ('&since=' + encodeURIComponent(lastId)) : '';
         var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=0' + sinceParam;
@@ -460,7 +663,7 @@ function startSSE() {
                   if (!line) return;
                   try {
                     var msg = JSON.parse(line);
-                    if (msg.id) _sseLastId[t.id] = msg.id; // aggiorna cursore
+                    if (msg.id) _sseLastId[t.id] = msg.id;
                     if (msg.event === 'message') addFeedItem(msg, t.key, t.label);
                   } catch (e) {}
                 });
@@ -489,7 +692,7 @@ function setConnDot(state) {
 }
 
 /* ── Feed items ── */
-var _orderActions = {}; // msgId → action object
+var _orderActions = {};
 
 function addFeedItem(msg, qKey, qLabel) {
   var list  = document.getElementById('feed-list');
@@ -504,7 +707,6 @@ function addFeedItem(msg, qKey, qLabel) {
     imgHtml = '<img class="fi-img" src="' + esc(msg.attachment.url) + '" alt="" loading="lazy">';
   }
 
-  /* Pulsante Ordina — presente solo se l'azione ntfy è nell'array actions */
   var orderHtml = '';
   if (msg.actions) {
     for (var ai = 0; ai < msg.actions.length; ai++) {
@@ -518,7 +720,6 @@ function addFeedItem(msg, qKey, qLabel) {
     }
   }
 
-  /* CMD topic: prova a estrarre stato tasti dalla risposta [BOT] */
   if (qKey === 'cmd') parseBotStato(msg);
 
   var el = document.createElement('div');
@@ -556,7 +757,6 @@ function parseBotStato(msg) {
   var on    = body.indexOf('✅') !== -1;
   var u     = {};
 
-  /* Risposta "stato" completo */
   if (title.indexOf('Stato') !== -1) {
     updateBtnStates({
       'armed':       body.indexOf('Cecchino attivo: ✅') !== -1,
@@ -572,7 +772,6 @@ function parseBotStato(msg) {
     return;
   }
 
-  /* Risposte individuali */
   if (title.indexOf('Full Auto')   !== -1) u['fullauto']    = on;
   if (title.indexOf('Sched RFY')   !== -1) u['sched-rfy']   = on;
   if (title.indexOf('Det RFY')     !== -1) u['det-rfy']     = on;
@@ -605,7 +804,6 @@ function esc(s) {
 }
 
 /* ── Commands ── */
-/* Mappa comando → state-key per update ottimistico immediato */
 var _cmdStateMap = {
   'ar rfy':     'ar-rfy',
   'ar afa':     'ar-afa',
@@ -621,7 +819,6 @@ function sendCmd(cmd) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) { showFeedback('⚠️ Topic comandi non configurato — vai in Impostazioni', true); return; }
 
-  /* Update ottimistico: inverti subito lo stato visivo del tasto */
   var sk = _cmdStateMap[cmd];
   if (sk) {
     var btn = document.querySelector('[data-state-key="' + sk + '"]');
@@ -656,16 +853,7 @@ function sendCmd(cmd) {
     body: cmd
   }).then(function (res) {
     if (res.ok) showFeedback('✅ "' + cmd + '" inviato', false);
-    else {
-      /* Rollback ottimistico in caso di errore */
-      if (sk) {
-        var btn2 = document.querySelector('[data-state-key="' + sk + '"]');
-        if (btn2 && btn2.classList.contains('state-on') !== (sk ? !btn2.classList.contains('state-off') : false)) {
-          btn2.classList.toggle('state-on'); btn2.classList.toggle('state-off');
-        }
-      }
-      showFeedback('❌ HTTP ' + res.status, true);
-    }
+    else showFeedback('❌ HTTP ' + res.status, true);
   }).catch(function (err) {
     showFeedback('❌ ' + err.message, true);
   });
@@ -682,11 +870,13 @@ function showFeedback(msg, isErr) {
 
 /* ── Settings ── */
 function loadSettingsToForm() {
-  document.getElementById('s-token').value = cfg.token    || '';
-  document.getElementById('s-cpt').value   = cfg.topicCpt || '';
-  document.getElementById('s-dpt').value   = cfg.topicDpt || '';
-  document.getElementById('s-aa').value    = cfg.topicAa  || '';
-  document.getElementById('s-cmd').value   = cfg.topicCmd || '';
+  document.getElementById('s-token').value    = cfg.token    || '';
+  document.getElementById('s-cpt').value      = cfg.topicCpt || '';
+  document.getElementById('s-dpt').value      = cfg.topicDpt || '';
+  document.getElementById('s-aa').value       = cfg.topicAa  || '';
+  document.getElementById('s-cmd').value      = cfg.topicCmd || '';
+  document.getElementById('s-gh-token').value = cfg.ghToken  || '';
+  document.getElementById('s-gist-id').value  = cfg.gistId   || '';
 }
 
 function saveSettings() {
@@ -705,6 +895,8 @@ function saveSettings() {
   cfg.topicDpt = document.getElementById('s-dpt').value.trim();
   cfg.topicAa  = document.getElementById('s-aa').value.trim();
   cfg.topicCmd = document.getElementById('s-cmd').value.trim();
+  cfg.ghToken  = document.getElementById('s-gh-token').value.trim();
+  cfg.gistId   = document.getElementById('s-gist-id').value.trim();
   saveCfg();
 
   if (newPwd) {
@@ -717,9 +909,324 @@ function saveSettings() {
   fb.textContent = '✅ Impostazioni salvate';
   setTimeout(function () { fb.textContent = ''; }, 3000);
 
-  /* Restart SSE and re-register push with updated topics */
   startSSE();
   resubscribePush();
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   FILTRI — Gist R/W
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Stato locale filtri (in memoria, modificato dall'utente) */
+var _fData = null; /* { blacklist, blacklistEtv, brands, advancedRules } */
+var _fDirty = false;
+
+function ghHeaders() {
+  return {
+    'Authorization': 'Bearer ' + cfg.ghToken.trim(),
+    'Content-Type': 'application/json',
+    'Accept': 'application/vnd.github+json'
+  };
+}
+
+function setFStatus(msg, type) {
+  /* type: 'ok' | 'err' | 'warn' | '' */
+  var bar = document.getElementById('f-status-bar');
+  if (!msg) { bar.innerHTML = ''; return; }
+  bar.innerHTML = '<div class="f-status ' + (type || '') + '">' + esc(msg) + '</div>';
+}
+
+function loadFilters(force) {
+  if (!cfg.ghToken || !cfg.gistId) {
+    document.getElementById('filters-not-configured').style.display = '';
+    document.getElementById('filters-loading').style.display = 'none';
+    document.getElementById('filters-body').style.display = 'none';
+    return;
+  }
+  if (_fData && !force) return; /* già caricato */
+
+  document.getElementById('filters-not-configured').style.display = 'none';
+  document.getElementById('filters-loading').style.display = '';
+  document.getElementById('filters-body').style.display = 'none';
+  setFStatus('');
+
+  fetch('https://api.github.com/gists/' + cfg.gistId.trim(), { headers: ghHeaders() })
+    .then(function(r) {
+      if (!r.ok) throw new Error('GitHub API: ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      var file = data.files && data.files[GIST_FILE];
+      if (!file) throw new Error('File ' + GIST_FILE + ' non trovato nel Gist.\nFai prima un Push Config da PhantomCore.');
+      _fData = JSON.parse(file.content);
+      _fDirty = false;
+      document.getElementById('filters-loading').style.display = 'none';
+      document.getElementById('filters-body').style.display = '';
+      renderFilters();
+    })
+    .catch(function(e) {
+      document.getElementById('filters-loading').style.display = 'none';
+      document.getElementById('filters-not-configured').style.display = '';
+      document.getElementById('filters-not-configured').textContent = '❌ ' + (e.message || 'Errore sconosciuto');
+    });
+}
+
+function renderFilters() {
+  if (!_fData) return;
+  var bl    = _fData.blacklist    || { enabled: false, list: [] };
+  var bletv = _fData.blacklistEtv || { enabled: false, maxEtv: 0 };
+  var br    = _fData.brands       || { enabled: false, list: [] };
+  var ar    = _fData.advancedRules || { enabled: true, rules: [] };
+
+  document.getElementById('f-bl-enabled').checked    = !!bl.enabled;
+  document.getElementById('f-bletv-enabled').checked = !!bletv.enabled;
+  document.getElementById('f-bletv-max').value        = bletv.maxEtv != null ? bletv.maxEtv : '';
+  document.getElementById('f-brands-enabled').checked = !!br.enabled;
+  document.getElementById('f-rules-enabled').checked  = ar.enabled !== false;
+
+  renderTagList('f-bl-list',     bl.list || [],  'bl');
+  renderTagList('f-brands-list', br.list || [], 'brands');
+  renderRulesList(ar.rules || []);
+
+  _fDirty = false;
+}
+
+/* ── Tag lists (Blacklist / Brand VIP) ── */
+function renderTagList(containerId, list, ns) {
+  var el = document.getElementById(containerId);
+  el.innerHTML = '';
+  list.forEach(function(item, i) {
+    var tag = document.createElement('div');
+    tag.className = 'f-tag';
+    tag.innerHTML = esc(item) + '<button class="f-tag-del" onclick="removeTag(\'' + ns + '\',' + i + ')" title="Rimuovi">×</button>';
+    el.appendChild(tag);
+  });
+}
+
+function _getTagList(ns) {
+  if (ns === 'bl')     return (_fData.blacklist     || {}).list || [];
+  if (ns === 'brands') return (_fData.brands        || {}).list || [];
+  return [];
+}
+function _setTagList(ns, list) {
+  if (ns === 'bl')     { if (!_fData.blacklist)    _fData.blacklist    = {}; _fData.blacklist.list    = list; }
+  if (ns === 'brands') { if (!_fData.brands)       _fData.brands       = {}; _fData.brands.list       = list; }
+}
+
+function addTag(ns) {
+  var inputId = ns === 'bl' ? 'f-bl-input' : 'f-brands-input';
+  var input = document.getElementById(inputId);
+  var val = (input.value || '').trim().toLowerCase();
+  if (!val) return;
+  var list = _getTagList(ns).slice();
+  if (list.indexOf(val) !== -1) { input.value = ''; return; } /* già presente */
+  list.push(val);
+  _setTagList(ns, list);
+  input.value = '';
+  renderTagList(ns === 'bl' ? 'f-bl-list' : 'f-brands-list', list, ns);
+  _fDirty = true;
+}
+
+function removeTag(ns, idx) {
+  var list = _getTagList(ns).slice();
+  list.splice(idx, 1);
+  _setTagList(ns, list);
+  renderTagList(ns === 'bl' ? 'f-bl-list' : 'f-brands-list', list, ns);
+  _fDirty = true;
+}
+
+/* Enter su input tag */
+document.addEventListener('keydown', function(e) {
+  if (e.key !== 'Enter') return;
+  if (e.target.id === 'f-bl-input')     addTag('bl');
+  if (e.target.id === 'f-brands-input') addTag('brands');
+});
+
+/* ── Regole avanzate ── */
+function renderRulesList(rules) {
+  var el = document.getElementById('f-rules-list');
+  el.innerHTML = '';
+  rules.forEach(function(rule, i) {
+    el.appendChild(buildRuleCard(rule, i));
+  });
+}
+
+function buildRuleCard(rule, idx) {
+  var card = document.createElement('div');
+  card.className = 'f-rule-card' + (rule.enabled === false ? ' disabled' : '');
+  card.id = 'f-rule-card-' + idx;
+
+  var kws  = (rule.keywords      || []).join(', ');
+  var rkws = (rule.rejectKeywords || []).join(', ');
+
+  card.innerHTML =
+    '<div class="f-rule-head" onclick="toggleRuleBody(' + idx + ')">' +
+      '<span class="f-rule-name" id="f-rule-name-disp-' + idx + '">' + esc(rule.name || '(senza nome)') + '</span>' +
+      '<label class="f-toggle f-rule-toggle" onclick="event.stopPropagation()">' +
+        '<input type="checkbox" id="f-rule-en-' + idx + '"' + (rule.enabled !== false ? ' checked' : '') + ' onchange="ruleFieldChanged(' + idx + ')">' +
+        '<div class="f-toggle-track"></div>' +
+      '</label>' +
+      '<button class="f-rule-del" onclick="event.stopPropagation();removeRule(' + idx + ')" title="Elimina regola">🗑</button>' +
+    '</div>' +
+    '<div class="f-rule-body" id="f-rule-body-' + idx + '">' +
+      '<div class="f-rule-field">' +
+        '<label>Nome regola</label>' +
+        '<input type="text" id="f-rule-n-' + idx + '" value="' + esc(rule.name || '') + '" placeholder="es. Auricolari sport" oninput="ruleFieldChanged(' + idx + ')">' +
+      '</div>' +
+      '<div class="f-rule-field">' +
+        '<label>Brand (opzionale)</label>' +
+        '<input type="text" id="f-rule-br-' + idx + '" value="' + esc(rule.brand || '') + '" placeholder="es. Sony" autocapitalize="words" oninput="ruleFieldChanged(' + idx + ')">' +
+      '</div>' +
+      '<div class="f-rule-field">' +
+        '<label>Keywords (virgola per OR, + per AND)</label>' +
+        '<input type="text" id="f-rule-kw-' + idx + '" value="' + esc(kws) + '" placeholder="es. auricolari, cuffie+sport" autocapitalize="none" oninput="ruleFieldChanged(' + idx + ')">' +
+        '<div class="f-rule-hint">Ogni elemento = OR. Usa + per AND: "cuffie+sport" = titolo contiene entrambi.</div>' +
+      '</div>' +
+      '<div class="f-rule-field">' +
+        '<label>ETV minimo (€, 0 = ignora)</label>' +
+        '<input type="number" id="f-rule-mine-' + idx + '" value="' + (rule.minEtv || 0) + '" min="0" step="0.5" oninput="ruleFieldChanged(' + idx + ')">' +
+      '</div>' +
+      '<div class="f-rule-field">' +
+        '<label>ETV massimo (€, 0 = ignora)</label>' +
+        '<input type="number" id="f-rule-maxe-' + idx + '" value="' + (rule.maxEtv || 0) + '" min="0" step="0.5" oninput="ruleFieldChanged(' + idx + ')">' +
+      '</div>' +
+      '<div class="f-rule-field">' +
+        '<label>Parole da scartare (rejectKeywords, virgola per più)</label>' +
+        '<input type="text" id="f-rule-rk-' + idx + '" value="' + esc(rkws) + '" placeholder="es. ricambio, spare" autocapitalize="none" oninput="ruleFieldChanged(' + idx + ')">' +
+        '<div class="f-rule-hint">Se il titolo contiene queste parole, la regola NON scatta.</div>' +
+      '</div>' +
+    '</div>';
+  return card;
+}
+
+function toggleRuleBody(idx) {
+  var body = document.getElementById('f-rule-body-' + idx);
+  if (body) body.classList.toggle('open');
+}
+
+function ruleFieldChanged(idx) {
+  /* Aggiorna _fData.advancedRules.rules[idx] dai valori degli input */
+  var rules = ((_fData.advancedRules || {}).rules || []);
+  if (!rules[idx]) return;
+  var r = rules[idx];
+  r.name    = (document.getElementById('f-rule-n-'    + idx) || {}).value || '';
+  r.brand   = ((document.getElementById('f-rule-br-'   + idx) || {}).value || '').trim();
+  r.enabled = !!(document.getElementById('f-rule-en-'  + idx) || {}).checked;
+  r.minEtv  = parseFloat((document.getElementById('f-rule-mine-' + idx) || {}).value) || 0;
+  r.maxEtv  = parseFloat((document.getElementById('f-rule-maxe-' + idx) || {}).value) || 0;
+
+  var kwRaw  = ((document.getElementById('f-rule-kw-' + idx) || {}).value || '');
+  var rkwRaw = ((document.getElementById('f-rule-rk-' + idx) || {}).value || '');
+  r.keywords       = kwRaw.split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+  r.rejectKeywords = rkwRaw.split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+
+  /* Aggiorna display nome nella card header */
+  var disp = document.getElementById('f-rule-name-disp-' + idx);
+  if (disp) disp.textContent = r.name || '(senza nome)';
+
+  var card = document.getElementById('f-rule-card-' + idx);
+  if (card) card.className = 'f-rule-card' + (r.enabled === false ? ' disabled' : '');
+
+  _fDirty = true;
+}
+
+function addRule() {
+  if (!_fData) return;
+  if (!_fData.advancedRules) _fData.advancedRules = { enabled: true, rules: [] };
+  if (!_fData.advancedRules.rules) _fData.advancedRules.rules = [];
+  var newRule = { name: '', brand: '', keywords: [], minEtv: 0, maxEtv: 0, ignoreEtv: false, enabled: true, rejectKeywords: [] };
+  _fData.advancedRules.rules.push(newRule);
+  var idx = _fData.advancedRules.rules.length - 1;
+  var el = document.getElementById('f-rules-list');
+  var card = buildRuleCard(newRule, idx);
+  el.appendChild(card);
+  /* Apre automaticamente il corpo della nuova regola */
+  toggleRuleBody(idx);
+  _fDirty = true;
+}
+
+function removeRule(idx) {
+  if (!_fData || !_fData.advancedRules || !_fData.advancedRules.rules) return;
+  _fData.advancedRules.rules.splice(idx, 1);
+  renderRulesList(_fData.advancedRules.rules);
+  _fDirty = true;
+}
+
+/* ── Raccoglie tutto da DOM → _fData prima del salvataggio ── */
+function collectFilterData() {
+  if (!_fData) return;
+  if (!_fData.blacklist)    _fData.blacklist    = {};
+  if (!_fData.blacklistEtv) _fData.blacklistEtv = {};
+  if (!_fData.brands)       _fData.brands       = {};
+  if (!_fData.advancedRules) _fData.advancedRules = { rules: [] };
+
+  _fData.blacklist.enabled    = document.getElementById('f-bl-enabled').checked;
+  _fData.blacklistEtv.enabled = document.getElementById('f-bletv-enabled').checked;
+  _fData.blacklistEtv.maxEtv  = parseFloat(document.getElementById('f-bletv-max').value) || 0;
+  _fData.brands.enabled       = document.getElementById('f-brands-enabled').checked;
+  _fData.advancedRules.enabled = document.getElementById('f-rules-enabled').checked;
+
+  /* Forza sync di tutte le rule cards aperte */
+  var rules = _fData.advancedRules.rules || [];
+  rules.forEach(function(_, i) { ruleFieldChanged(i); });
+}
+
+/* ── Salva su Gist + invia pull-config via ntfy ── */
+function saveFilters() {
+  if (!_fData) return;
+  if (!cfg.ghToken || !cfg.gistId) {
+    setFStatus('Configura GitHub Token e Gist ID nelle Impostazioni', 'err');
+    return;
+  }
+
+  collectFilterData();
+
+  var saveBtn = document.getElementById('f-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = '⏳ Salvataggio…';
+  setFStatus('');
+
+  var body = { files: {} };
+  body.files[GIST_FILE] = { content: JSON.stringify(_fData, null, 2) };
+
+  fetch('https://api.github.com/gists/' + cfg.gistId.trim(), {
+    method: 'PATCH',
+    headers: ghHeaders(),
+    body: JSON.stringify(body)
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('GitHub API: ' + r.status);
+    /* Gist aggiornato — invia pull-config a PhantomCore via ntfy */
+    return sendPullConfig();
+  })
+  .then(function() {
+    _fDirty = false;
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Salva e applica a PhantomCore';
+    setFStatus('✅ Filtri salvati e applicati a PhantomCore', 'ok');
+    setTimeout(function() { setFStatus(''); }, 4000);
+  })
+  .catch(function(e) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = '💾 Salva e applica a PhantomCore';
+    setFStatus('❌ ' + (e.message || 'Errore'), 'err');
+  });
+}
+
+function sendPullConfig() {
+  var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
+  if (!topic) {
+    /* Topic comandi non configurato — Gist aggiornato ma PhantomCore dovrà fare Pull manuale */
+    setFStatus('⚠️ Gist aggiornato ma topic comandi non configurato — fai Pull manuale da PhantomCore', 'warn');
+    return Promise.resolve();
+  }
+  var headers = { 'Content-Type': 'text/plain' };
+  if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
+  return fetch(NTFY_BASE + '/' + topic, {
+    method: 'POST', headers: headers, body: 'pull-config'
+  }).then(function(r) {
+    if (!r.ok) throw new Error('ntfy ' + r.status);
+  });
 }
 
 /* ── Service Worker ── */
@@ -727,10 +1234,9 @@ var _swReg = null;
 
 function registerSW() {
   if (!('serviceWorker' in navigator)) return;
-  /* updateViaCache:'none' → browser ignora cache HTTP per sw.js, scarica sempre dal network */
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (reg) {
     _swReg = reg;
-    reg.update(); // controlla subito aggiornamenti
+    reg.update();
   }).catch(function (e) { console.warn('SW:', e); });
 }
 
@@ -775,8 +1281,6 @@ function subscribePush() {
   Notification.requestPermission().then(function (perm) {
     updatePushStatusBar();
     if (perm !== 'granted') return;
-    /* Usa serviceWorker.ready — restituisce la registration solo quando
-       il SW è in stato "activated", evitando "no active service worker" */
     navigator.serviceWorker.ready.then(function (reg) {
       _swReg = reg;
       doSubscribe(reg);
