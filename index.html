@@ -290,7 +290,14 @@
           <button class="cmd-btn info"    onclick="sendCmd('stato')">                            <span class="bicon">📊</span>Stato</button>
           <button class="cmd-btn danger"  onclick="sendCmd('disattiva')">                        <span class="bicon">⏹️</span>Disattiva</button>
           <button class="cmd-btn success" onclick="sendCmd('avvia')" data-state-key="armed">     <span class="bicon">▶️</span>Avvia</button>
-          <button class="cmd-btn purple"  onclick="sendCmd('fullauto')" data-state-key="fullauto"><span class="bicon">⚡</span>Full Auto</button>
+        </div>
+      </div>
+      <div class="cmd-section">
+        <div class="section-title">Modo Hide</div>
+        <div class="cmd-grid">
+          <button class="cmd-btn mode-btn" data-mode="fullauto" onclick="sendCmd('fullauto')"><span class="bicon">🤖</span>Full Auto</button>
+          <button class="cmd-btn mode-btn" data-mode="presidio" onclick="sendCmd('presidio')"><span class="bicon">⚡</span>Presidio</button>
+          <button class="cmd-btn mode-btn" data-mode="remoto"   onclick="sendCmd('remoto')"><span class="bicon">📱</span>Remoto</button>
         </div>
       </div>
       <div class="cmd-section">
@@ -648,11 +655,22 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 /* ══════════════════════════════════════════════════════════════
    COMMANDS
    ══════════════════════════════════════════════════════════════ */
-var _cmdStateMap = { 'ar rfy':'ar-rfy','ar afa':'ar-afa','ar ai':'ar-ai','fullauto':'fullauto','sched rfy':'sched-rfy','sched aadpt':'sched-aadpt','det rfy':'det-rfy','det aadpt':'det-aadpt' };
+var _cmdStateMap = { 'ar rfy':'ar-rfy','ar afa':'ar-afa','ar ai':'ar-ai','sched rfy':'sched-rfy','sched aadpt':'sched-aadpt','det rfy':'det-rfy','det aadpt':'det-aadpt' };
+var _MODES = ['fullauto','presidio','remoto'];
+// Evidenzia in modo esclusivo il bottone del modo hide attivo
+function setActiveMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(function(b) {
+    var on = b.getAttribute('data-mode') === mode;
+    b.classList.toggle('state-on', on);
+    b.classList.toggle('state-off', !on);
+  });
+}
+function labelToMode(s) { s = s || ''; if (s.indexOf('Full Auto') !== -1) return 'fullauto'; if (s.indexOf('Remoto') !== -1) return 'remoto'; return 'presidio'; }
 
 function sendCmd(cmd) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) { showCmdFeedback('⚠️ Topic comandi non configurato', true); return; }
+  if (_MODES.indexOf(cmd) !== -1) { setActiveMode(cmd); } // modo hide: evidenziazione esclusiva ottimistica
   var sk = _cmdStateMap[cmd];
   if (sk) { var btn = document.querySelector('[data-state-key="'+sk+'"]'); if (btn) { var wasOn = btn.classList.contains('state-on'); btn.classList.toggle('state-on',!wasOn); btn.classList.toggle('state-off',wasOn); } }
   if (cmd==='ar off') { ['ar-rfy','ar-afa','ar-ai'].forEach(function(k){ var b=document.querySelector('[data-state-key="'+k+'"]'); if(b){b.classList.remove('state-on');b.classList.add('state-off');} }); }
@@ -671,17 +689,18 @@ function parseBotStato(msg) {
     var on = function(s){ return body.indexOf(s+' ✅') !== -1; };
     updateBtnStates({
       'armed':       on('Cecchino attivo:'),
-      'fullauto':    on('Full Auto:'),
       'sched-rfy':   on('Sched RFY:'),
       'det-rfy':     on('Det RFY:'),
       'det-aadpt':   body.indexOf('DPT ✅') !== -1 && body.indexOf('AA ✅') !== -1,
       'sched-aadpt': on('Sched AA/DPT:')
     });
+    var mm = body.match(/Modo:\s*(.+)/);
+    if (mm) setActiveMode(labelToMode(mm[1]));
     return;
   }
+  if (title.indexOf('Modo') !== -1) { setActiveMode(labelToMode(body)); return; } // risposta [BOT] cambio modo
   var isOn = body.indexOf('✅') !== -1;
   var u = {};
-  if (title.indexOf('Full Auto')    !== -1) u['fullauto']    = isOn;
   if (title.indexOf('Sched RFY')    !== -1) u['sched-rfy']   = isOn;
   if (title.indexOf('Det RFY')      !== -1) u['det-rfy']     = isOn;
   if (title.indexOf('Det AA/DPT')   !== -1) { u['det-aadpt'] = isOn; }
