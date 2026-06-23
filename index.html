@@ -1083,20 +1083,46 @@ function fbGetToken() {
 function loadDrops(more) {
   if (!cfg.fbEmail || !cfg.fbPassword) { showDropsState('not-configured'); return; }
   _allDrops=[]; _dropsPage=0; _dropsFilter=''; document.getElementById('drops-search').value='';
+  document.getElementById('drop-list').innerHTML='';
+  setBarStatus('drops-status-bar','Caricamento drops da Firebase PCU...','');
   showDropsState('loading');
   fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_log/drops.json?auth='+token);
-  }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
+    return loadDropsFromFirebasePath(token, '/pcu_log/drops').then(function(rows) {
+      if (rows.length) return { rows: rows, source: 'pcu_log/drops' };
+      return loadDropsFromFirebasePath(token, '/pcu_drops').then(function(recentRows) {
+        return { rows: recentRows, source: recentRows.length ? 'pcu_drops recenti' : 'pcu_log/drops + pcu_drops' };
+      });
+    });
+  }).then(function(result) {
+    var rows = result.rows || [];
+    rows.sort(function(a,b){ return (dropTs(b)||0)-(dropTs(a)||0); });
+    _allDrops = rows;
+    _dropsPage=0; showDropsState('body'); document.getElementById('drop-list').innerHTML=''; renderDropsPage();
+    setBarStatus('drops-status-bar', rows.length ? ('OK Drops caricati da Firebase PCU ('+rows.length+', sorgente '+result.source+')') : 'Nessun drop trovato in Firebase PCU.', rows.length ? 'ok' : '');
+  }).catch(function(e){
+    showDropsState('body');
+    document.getElementById('drop-list').innerHTML = '<div class="not-configured">Nessun dato Drops renderizzato.</div>';
+    setBarStatus('drops-status-bar','Errore Drops: '+(e.message||'Errore'),'err');
+  });
+}
+function loadDropsFromFirebasePath(token, path) {
+  return fetch(FB_DB_URL+path+'.json?auth='+token)
+    .then(function(r){ if(!r.ok) throw new Error('Firebase DB '+path+': HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
-      if (data) Object.keys(data).forEach(function(k){ var e=Object.assign({},data[k]); e._fbKey=k; rows.push(e); });
-      rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
-      _allDrops = rows;
-      _dropsPage=0; showDropsState('body'); document.getElementById('drop-list').innerHTML=''; renderDropsPage();
-      setBarStatus('drops-status-bar', rows.length ? ('OK Drops caricati da Firebase PCU ('+rows.length+')') : 'Nessun drop nel log Firebase PCU', rows.length ? 'ok' : '');
-    })
-    .catch(function(e){ setBarStatus('drops-status-bar','Errore: '+(e.message||'Errore'),'err'); showDropsState('body'); });
+      if (data) Object.keys(data).forEach(function(k){
+        var raw = data[k];
+        if (!raw || typeof raw !== 'object') return;
+        var e=Object.assign({}, raw); e._fbKey=k; rows.push(e);
+      });
+      return rows;
+    });
 }
+
+function dropTs(d) {
+  return Number(d && (d.ts || d.serverTs || d.createdAt || d.updatedAt || d.timestamp)) || 0;
+}
+
 
 function showDropsState(s) {
   document.getElementById('drops-not-configured').style.display = s==='not-configured' ? '' : 'none';
@@ -1109,6 +1135,11 @@ function filterDrops() { _dropsFilter=(document.getElementById('drops-search').v
 function renderDropsPage() {
   var filtered=_allDrops.filter(function(d){ return !_dropsFilter || (d.title||'').toLowerCase().indexOf(_dropsFilter)!==-1 || (d.asin||'').toLowerCase().indexOf(_dropsFilter)!==-1; });
   var list=document.getElementById('drop-list'); var start=_dropsPage*DROPS_PAGE;
+  if (!filtered.length) {
+    list.innerHTML = '<div class="not-configured">Nessun drop da mostrare.</div>';
+    document.getElementById('drops-more-btn').style.display = 'none';
+    return;
+  }
   filtered.slice(start, start+DROPS_PAGE).forEach(function(d){ list.appendChild(buildDropCard(d)); });
   _dropsPage++;
   document.getElementById('drops-more-btn').style.display = filtered.length > _dropsPage*DROPS_PAGE ? '' : 'none';
@@ -1119,7 +1150,8 @@ function buildDropCard(d) {
   var resClass = result === 'ordered' ? 'ordered' : result === 'matched' ? 'matched' : result === 'skipped_variant' ? 'skipped_variant' : 'skipped';
   var qKey = String(d.queue || '').toUpperCase();
   var qClass = (qKey === 'RFY' || qKey === 'CPT') ? 'queue-rfy' : (qKey === 'AA' || qKey === 'AI') ? 'queue-aa' : (qKey === 'DPT' || qKey === 'AFA') ? 'queue-dpt' : '';
-  var ts = d.ts ? new Date(d.ts).toLocaleString('it-IT',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+  var _ts = dropTs(d);
+  var ts = _ts ? new Date(_ts).toLocaleString('it-IT',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
   var resBadge = result === 'ordered' ? '<span class="drop-badge res-ordered">ordinato</span>' : result === 'matched' ? '<span class="drop-badge res-matched">match</span>' : '';
   var etv = d.etvRaw != null ? d.etvRaw : d.etv;
   var card = document.createElement('div'); card.className = 'drop-card ' + resClass;
