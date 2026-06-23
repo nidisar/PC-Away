@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vhaul</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vpcuhaul</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -548,7 +548,7 @@ function initApp() {
 function refreshStartupData() {
   startSSE();
   preloadNtfyHistory();
-  loadPcuStatus().then(function(){ loadHaulSummary(); });
+  loadPcuStatus();
   loadDrops();
 }
 
@@ -669,18 +669,9 @@ function updateHaulBarFromOrders(rows) {
 }
 
 function loadHaulSummary() {
-  if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
-  return fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
-  }).then(function(r) {
-    if (!r.ok) throw new Error('Firebase Haul: HTTP '+r.status);
-    return r.json();
-  }).then(function(data) {
-    var rows = [];
-    if (data) Object.keys(data).forEach(function(k) { if (data[k]) rows.push(data[k]); });
-    updateHaulBarFromOrders(rows);
-    return rows;
-  }).catch(function() { return null; });
+  // Il riepilogo alto deve rispecchiare la barra operativa PCU, pubblicata in /pcu_status.haul.
+  // L'archivio ordini resta usato solo nel tab Haul e non deve mai riscrivere la top bar.
+  return loadPcuStatus();
 }
 
 
@@ -1265,7 +1256,6 @@ function loadHaul(force) {
       rows.sort(function(a,b){ var ta=a.confirmedAt||a.updatedAt||a.ts||pd(a.date); var tb=b.confirmedAt||b.updatedAt||b.ts||pd(b.date); return tb-ta; });
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
-      updateHaulBarFromOrders(rows);
       loadPcuStatus();
       setBarStatus('haul-status-bar','OK Haul caricato da Firebase PCU ('+rows.length+' ordini)','ok');
     })
