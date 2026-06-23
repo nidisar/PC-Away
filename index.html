@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vfbconfig</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vmonitorhaul</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -276,8 +276,8 @@
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
     <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this)">               <span class="ticon">🎮</span>Bot</button>
-    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud()"><span class="ticon">⏰</span>Sched</button>
-    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud()"> <span class="ticon">🎯</span>Filtri</button>
+    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgGist()"><span class="ticon">⏰</span>Sched</button>
+    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgGist()"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
     <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul()">     <span class="ticon">📦</span>Haul</button>
     <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
@@ -341,7 +341,7 @@
     <!-- ── SCHEDULER ── -->
     <div class="tab-panel" id="tab-scheduler">
       <div id="sched-not-configured" class="not-configured" style="display:none">
-        ⚙️ Configura <strong>Firebase Email</strong> e <strong>Password</strong> nelle Impostazioni.
+        ⚙️ Configura <strong>GitHub Token</strong> e <strong>Config Gist ID</strong> nelle Impostazioni.
       </div>
       <div id="sched-loading" class="not-configured" style="display:none">⏳ Caricamento…</div>
       <div id="sched-body" style="display:none">
@@ -379,14 +379,14 @@
           </div>
         </div>
         <button class="f-save-btn" id="sched-save-btn" onclick="saveScheduler()">💾 Salva e applica a PCU</button>
-        <button class="f-reload-btn" onclick="loadCfgCloud(true)">↺ Ricarica da Firebase</button>
+        <button class="f-reload-btn" onclick="loadCfgGist(true)">↺ Ricarica dal Gist</button>
       </div>
     </div>
 
     <!-- ── FILTRI ── -->
     <div class="tab-panel" id="tab-filters">
       <div id="filters-not-configured" class="not-configured" style="display:none">
-        ⚙️ Configura <strong>Firebase Email</strong> e <strong>Password</strong> nelle Impostazioni.
+        ⚙️ Configura <strong>GitHub Token</strong> e <strong>Config Gist ID</strong> nelle Impostazioni.
       </div>
       <div id="filters-loading" class="not-configured" style="display:none">⏳ Caricamento filtri…</div>
       <div id="filters-body" style="display:none">
@@ -411,7 +411,7 @@
           <button class="f-add-rule-btn" onclick="addRule()">＋ Nuova regola</button>
         </div>
         <button class="f-save-btn" id="f-save-btn" onclick="saveFilters()">💾 Salva e applica a PCU</button>
-        <button class="f-reload-btn" onclick="loadCfgCloud(true)">↺ Ricarica da Firebase</button>
+        <button class="f-reload-btn" onclick="loadCfgGist(true)">↺ Ricarica dal Gist</button>
       </div>
     </div>
 
@@ -471,11 +471,11 @@
         <div class="settings-row"><div class="s-label">Topic Comandi</div><input class="s-input" type="text" id="s-cmd" placeholder="mio-topic-comandi" autocomplete="off"></div>
       </div>
       <div class="settings-section">
-        <div class="section-title">☁️ GitHub Gist legacy (opzionale)</div>
+        <div class="section-title">☁️ GitHub Gist legacy (Filtri / Scheduler)</div>
         <div class="settings-row"><div class="s-label">GitHub Token (scope: gist)</div><input class="s-input" type="password" id="s-gh-token" placeholder="github_pat_…" autocomplete="off"></div>
         <div class="settings-row"><div class="s-label">Config Gist ID</div><input class="s-input" type="text" id="s-gist-id" placeholder="abc123def456…" autocomplete="off" autocorrect="off" autocapitalize="none"></div>
         <div class="settings-row"><div class="s-label">Haul Gist ID legacy</div><input class="s-input" type="text" id="s-haul-gist-id" placeholder="abc123def456…" autocomplete="off" autocorrect="off" autocapitalize="none"></div>
-        <p class="s-info">Solo compatibilità vecchia Phantom Core: Sched e Filtri ora usano Firebase.</p>
+        <p class="s-info">Gist legacy della vecchia Phantom Core → Impostazioni → Cloud.</p>
       </div>
       <div class="settings-section">
         <div class="section-title">🔥 Firebase (Drop Log)</div>
@@ -955,79 +955,29 @@ var _fData = null; var _fDirty = false; var _cfgLoading = false;
 
 function ghHeaders() { return { 'Authorization':'Bearer '+cfg.ghToken.trim(), 'Content-Type':'application/json', 'Accept':'application/vnd.github+json' }; }
 
-function defaultRemoteConfig() {
-  return {
-    arScheduleCpt: { active:false, enabled:true, startTime:'01:00', repeatHours:8, preMinutes:2, postMinutes:10, repeatMin:60, actionMode:'ar_only', pointBlankAr:false, autorefreshEnabled:true },
-    arScheduleHourly: { enabled:false, preMinutes:3, jitterSec:90, noDropOffMin:5, manual:{ enabled:false, minute:null, durationMin:5 } },
-    blacklist: { enabled:false, list:[] },
-    blacklistEtv: { enabled:false, maxEtv:0 },
-    brands: { enabled:false, list:[] },
-    advancedRules: { enabled:true, rules:[] }
-  };
-}
-
-function normalizeRemoteConfig(data) {
-  var base = defaultRemoteConfig();
-  data = data && typeof data === 'object' ? data : {};
-  base.arScheduleCpt = Object.assign({}, base.arScheduleCpt, data.arScheduleCpt || {});
-  base.arScheduleHourly = Object.assign({}, base.arScheduleHourly, data.arScheduleHourly || {});
-  base.arScheduleHourly.manual = Object.assign({}, defaultRemoteConfig().arScheduleHourly.manual, (data.arScheduleHourly || {}).manual || {});
-  base.blacklist = Object.assign({}, base.blacklist, data.blacklist || {});
-  base.blacklist.list = Array.isArray(base.blacklist.list) ? base.blacklist.list : [];
-  base.blacklistEtv = Object.assign({}, base.blacklistEtv, data.blacklistEtv || {});
-  base.brands = Object.assign({}, base.brands, data.brands || {});
-  base.brands.list = Array.isArray(base.brands.list) ? base.brands.list : [];
-  base.advancedRules = Object.assign({}, base.advancedRules, data.advancedRules || {});
-  base.advancedRules.rules = Array.isArray(base.advancedRules.rules) ? base.advancedRules.rules : [];
-  if (data.etv) base.etv = data.etv;
-  if (data.categoryWhitelist) base.categoryWhitelist = data.categoryWhitelist;
-  if (data.categoryBlacklist) base.categoryBlacklist = data.categoryBlacklist;
-  return base;
-}
-
-function filterConfigSubset(data) {
-  return {
-    etv: data.etv,
-    brands: data.brands,
-    blacklist: data.blacklist,
-    blacklistEtv: data.blacklistEtv,
-    advancedRules: data.advancedRules,
-    categoryWhitelist: data.categoryWhitelist,
-    categoryBlacklist: data.categoryBlacklist,
-    updatedAt: Date.now(),
-    schema: 'pcu_filters_v2'
-  };
-}
-
-function loadCfgGist(force) { return loadCfgCloud(force); } // legacy alias: i tab ora usano Firebase
-
-function loadCfgCloud(force) {
-  if (!cfg.fbEmail || !cfg.fbPassword) { ['sched','filters'].forEach(function(ns){ showNs(ns,'not-configured'); }); return; }
+function loadCfgGist(force) {
+  if (!cfg.ghToken || !cfg.gistId) { ['sched','filters'].forEach(function(ns){ showNs(ns,'not-configured'); }); return; }
   if (_fData && !force) { showNs('sched','body'); populateSchedulerForm(); showNs('filters','body'); renderFilters(); return; }
   if (_cfgLoading && !force) return;
   _cfgLoading = true;
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
-  fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL + '/pcu_config/current.json?auth=' + token)
-      .then(function(r){ if(!r.ok) throw new Error('Firebase config: HTTP ' + r.status); return r.json(); })
-      .then(function(data) {
-        if (data) return data;
-        return fetch(FB_DB_URL + '/pcu_filters/config.json?auth=' + token)
-          .then(function(fr){ if(!fr.ok) throw new Error('Firebase filtri: HTTP ' + fr.status); return fr.json(); })
-          .then(function(filters){ return filters || {}; });
+  fetch('https://api.github.com/gists/'+cfg.gistId.trim(), { headers: ghHeaders() })
+    .then(function(r){ if(!r.ok) throw new Error('GitHub API: '+r.status); return r.json(); })
+    .then(function(data) {
+      var file = data.files && data.files[GIST_CONFIG_FILE];
+      if (!file) throw new Error('File '+GIST_CONFIG_FILE+' non trovato.');
+      _fData = JSON.parse(file.content); _fDirty = false; _cfgLoading = false;
+      showNs('sched','body'); populateSchedulerForm();
+      showNs('filters','body'); renderFilters();
+    })
+    .catch(function(e) {
+      _cfgLoading = false;
+      ['sched','filters'].forEach(function(ns) {
+        var el = document.getElementById(ns === 'sched' ? 'sched-not-configured' : 'filters-not-configured');
+        if (el) el.textContent = '❌ ' + (e.message||'Errore');
+        showNs(ns,'not-configured');
       });
-  }).then(function(data) {
-    _fData = normalizeRemoteConfig(data); _fDirty = false; _cfgLoading = false;
-    showNs('sched','body'); populateSchedulerForm();
-    showNs('filters','body'); renderFilters();
-  }).catch(function(e) {
-    _cfgLoading = false;
-    ['sched','filters'].forEach(function(ns) {
-      var el = document.getElementById(ns === 'sched' ? 'sched-not-configured' : 'filters-not-configured');
-      if (el) el.textContent = '❌ ' + (e.message||'Errore');
-      showNs(ns,'not-configured');
     });
-  });
 }
 
 function showNs(ns, what) {
@@ -1044,42 +994,33 @@ function setBarStatus(barId, msg, type) {
   var bar = document.getElementById(barId); if (!bar) return;
   bar.innerHTML = msg ? '<div class="status-bar '+(type||'')+'">'+esc(msg)+'</div>' : '';
 }
-function patchGistAndPull(saveBtn, statusBarId) { return patchFirebaseAndPull(saveBtn, statusBarId); } // legacy alias
 
-function patchFirebaseAndPull(saveBtn, statusBarId) {
-  if (!cfg.fbEmail || !cfg.fbPassword) { setBarStatus(statusBarId,'Configura Firebase Email e Password','err'); return; }
+function patchGistAndPull(saveBtn, statusBarId) {
+  if (!cfg.ghToken || !cfg.gistId) { setBarStatus(statusBarId,'Configura GitHub Token e Gist ID','err'); return; }
   saveBtn.disabled = true; saveBtn.textContent = '⏳ Salvataggio…'; setBarStatus(statusBarId,'');
-  var payload = normalizeRemoteConfig(_fData);
-  payload.updatedAt = Date.now(); payload.schema = 'pcu_config_v1'; payload.source = 'pcu-away';
-  fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL + '/pcu_config/current.json?auth=' + token, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-    }).then(function(r){ if(!r.ok) throw new Error('Firebase config: HTTP ' + r.status); return token; });
-  }).then(function(token) {
-    return fetch(FB_DB_URL + '/pcu_filters/config.json?auth=' + token, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(filterConfigSubset(payload))
-    }).then(function(r){ if(!r.ok) throw new Error('Firebase filtri: HTTP ' + r.status); });
-  }).then(function() {
-    return sendPullFirebaseConfig(statusBarId);
-  }).then(function() {
-    _fData = payload; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
-    setBarStatus(statusBarId,'✅ Salvato su Firebase e comando inviato a PCU','ok');
-    setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
-  }).catch(function(e) {
-    saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
-    setBarStatus(statusBarId,'❌ '+(e.message||'Errore'),'err');
-  });
+  var body = { files:{} }; body.files[GIST_CONFIG_FILE] = { content: JSON.stringify(_fData, null, 2) };
+  fetch('https://api.github.com/gists/'+cfg.gistId.trim(), { method:'PATCH', headers:ghHeaders(), body:JSON.stringify(body) })
+    .then(function(r){ if(!r.ok) throw new Error('GitHub API: '+r.status); return sendPullConfig(); })
+    .then(function() {
+      _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
+      setBarStatus(statusBarId,'✅ Salvato e applicato a PCU','ok');
+      setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
+    })
+    .catch(function(e) {
+      saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
+      setBarStatus(statusBarId,'❌ '+(e.message||'Errore'),'err');
+    });
 }
 
-function sendPullFirebaseConfig(statusBarId) {
+function sendPullConfig() {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
-  if (!topic) { setBarStatus(statusBarId,'⚠️ Salvato su Firebase — topic comandi non configurato','warn'); return Promise.resolve(); }
+  if (!topic) { setBarStatus('f-status-bar','⚠️ Gist aggiornato — topic comandi non configurato','warn'); return Promise.resolve(); }
   var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
-  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'pull-firebase-config' })
+  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'pull-config' })
     .then(function(r){ if(!r.ok) throw new Error('ntfy '+r.status); });
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════
    SCHEDULER
    ══════════════════════════════════════════════════════════════ */
 function populateSchedulerForm() {
