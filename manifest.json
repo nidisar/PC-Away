@@ -1,7 +1,7 @@
 {
-  "name": "PC Away",
-  "short_name": "PC Away",
-  "description": "Phantom Core — Remote Control & Notifications",
+  "name": "PCU Away",
+  "short_name": "PCU Away",
+  "description": "Phantom Core Ultra \u2014 Remote Control & Notifications",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0d1117",

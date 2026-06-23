@@ -1,5 +1,5 @@
-/* PC Away — Service Worker v1.1 */
-const CACHE = 'pc-away-v4';
+/* PCU Away - Service Worker v1.2 */
+const CACHE = 'pcu-away-v1';
 /* Path base dinamico — funziona sia su localhost che su GitHub Pages /PC-Away/ */
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
@@ -46,9 +46,9 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   if (!e.data) return;
   let msg;
-  try { msg = e.data.json(); } catch(err) { msg = { title: 'PC Away', body: e.data.text() }; }
+  try { msg = e.data.json(); } catch(err) { msg = { title: 'PCU Away', body: e.data.text() }; }
 
-  const title  = msg.title   || 'PC Away';
+  const title  = msg.title   || 'PCU Away';
   const body   = msg.message || msg.body || '';
   const image  = (msg.attachment && msg.attachment.url) || null;
   const topic  = msg.topic || '';

@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#e94560">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="PC Away">
-  <title>PC Away</title>
+  <meta name="apple-mobile-web-app-title" content="PCU Away">
+  <title>PCU Away</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg">
   <style>
@@ -241,7 +241,7 @@
 <div id="login-screen">
   <div class="logo">PC</div>
   <div class="sublogo">AWAY</div>
-  <div class="tagline">Phantom Core Remote</div>
+  <div class="tagline">Phantom Core Ultra Remote</div>
   <input type="password" id="pwd-input" placeholder="Password" autocomplete="current-password">
   <button class="btn-login" onclick="doLogin()">Accedi</button>
   <div class="err" id="login-err"></div>
@@ -251,7 +251,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PC AWAY</div>
+    <div class="logo">PCU AWAY</div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -368,7 +368,7 @@
             <div class="f-field"><label>Durata AR (min)</label><input type="number" id="sc-m-dur" min="1" max="60" step="1" value="5"></div>
           </div>
         </div>
-        <button class="f-save-btn" id="sched-save-btn" onclick="saveScheduler()">💾 Salva e applica a PhantomCore</button>
+        <button class="f-save-btn" id="sched-save-btn" onclick="saveScheduler()">💾 Salva e applica a PCU</button>
         <button class="f-reload-btn" onclick="loadCfgGist(true)">↺ Ricarica dal Gist</button>
       </div>
     </div>
@@ -400,7 +400,7 @@
           <div class="f-rules-list" id="f-rules-list"></div>
           <button class="f-add-rule-btn" onclick="addRule()">＋ Nuova regola</button>
         </div>
-        <button class="f-save-btn" id="f-save-btn" onclick="saveFilters()">💾 Salva e applica a PhantomCore</button>
+        <button class="f-save-btn" id="f-save-btn" onclick="saveFilters()">💾 Salva e applica a PCU</button>
         <button class="f-reload-btn" onclick="loadCfgGist(true)">↺ Ricarica dal Gist</button>
       </div>
     </div>
@@ -419,7 +419,7 @@
 
     <!-- ── HAUL ── -->
     <div class="tab-panel" id="tab-haul">
-      <div id="haul-not-configured" class="not-configured" style="display:none">⚙️ Configura <strong>GitHub Token</strong> e <strong>Haul Gist ID</strong> nelle Impostazioni.</div>
+      <div id="haul-not-configured" class="not-configured" style="display:none">⚙️ Configura <strong>Firebase Email</strong> e <strong>Password</strong> nelle Impostazioni.</div>
       <div id="haul-tab-loading" class="not-configured" style="display:none">⏳ Caricamento haul…</div>
       <div id="haul-body" style="display:none">
         <div id="haul-status-bar"></div>
@@ -449,17 +449,17 @@
         <div class="settings-row"><div class="s-label">Topic Comandi</div><input class="s-input" type="text" id="s-cmd" placeholder="mio-topic-comandi" autocomplete="off"></div>
       </div>
       <div class="settings-section">
-        <div class="section-title">☁️ GitHub Gist (Filtri / Scheduler)</div>
+        <div class="section-title">☁️ GitHub Gist legacy (Filtri / Scheduler)</div>
         <div class="settings-row"><div class="s-label">GitHub Token (scope: gist)</div><input class="s-input" type="password" id="s-gh-token" placeholder="github_pat_…" autocomplete="off"></div>
         <div class="settings-row"><div class="s-label">Config Gist ID</div><input class="s-input" type="text" id="s-gist-id" placeholder="abc123def456…" autocomplete="off" autocorrect="off" autocapitalize="none"></div>
-        <div class="settings-row"><div class="s-label">Haul Gist ID</div><input class="s-input" type="text" id="s-haul-gist-id" placeholder="abc123def456…" autocomplete="off" autocorrect="off" autocapitalize="none"></div>
-        <p class="s-info">Stessi Gist ID usati in PhantomCore → Impostazioni → Cloud.</p>
+        <div class="settings-row"><div class="s-label">Haul Gist ID legacy</div><input class="s-input" type="text" id="s-haul-gist-id" placeholder="abc123def456…" autocomplete="off" autocorrect="off" autocapitalize="none"></div>
+        <p class="s-info">Gist legacy della vecchia Phantom Core → Impostazioni → Cloud.</p>
       </div>
       <div class="settings-section">
         <div class="section-title">🔥 Firebase (Drop Log)</div>
         <div class="settings-row"><div class="s-label">Email</div><input class="s-input" type="email" id="s-fb-email" placeholder="nome@email.com" autocomplete="off" autocorrect="off" autocapitalize="none"></div>
         <div class="settings-row"><div class="s-label">Password</div><input class="s-input" type="password" id="s-fb-pwd" placeholder="••••••••" autocomplete="off"></div>
-        <p class="s-info">Stesse credenziali di PhantomCore → Impostazioni → Firebase.</p>
+        <p class="s-info">Stesse credenziali di Phantom Core Ultra → Impostazioni → Firebase.</p>
       </div>
       <div class="settings-section">
         <div class="section-title">Sicurezza</div>
@@ -475,7 +475,7 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   PC Away — main.js
+   PCU Away - main.js
    ══════════════════════════════════════════════════════════════ */
 var NTFY_BASE  = 'https://ntfy.sh';
 var VAPID_KEY  = 'BEMjM0sNxh41x0a6Lz3YaqkJ7AUhZefxsOQgw-at69i0fM1CybVBcj7-QQXf4N_tPCgFnOXdRbQ5jrSrr9Yg9Lc';
@@ -483,7 +483,7 @@ var STORE_KEY  = 'pcaway_config';
 var PWD_KEY    = 'pcaway_pwd';
 var MAX_FEED   = 60;
 var GIST_CONFIG_FILE = 'uvcomp_config.json';
-var GIST_HAUL_FILE   = 'uvcomp_haul.json';
+var GIST_HAUL_FILE   = 'uvcomp_haul.json'; // legacy only
 var FB_API_KEY  = 'AIzaSyBjQ-Ev2RdlimCKg6nl6Wxu3bCGtdiELnY';
 var FB_DB_URL   = 'https://phantom-core-cf159-default-rtdb.europe-west1.firebasedatabase.app';
 var DROPS_PAGE  = 80;
@@ -783,12 +783,12 @@ function patchGistAndPull(saveBtn, statusBarId) {
   fetch('https://api.github.com/gists/'+cfg.gistId.trim(), { method:'PATCH', headers:ghHeaders(), body:JSON.stringify(body) })
     .then(function(r){ if(!r.ok) throw new Error('GitHub API: '+r.status); return sendPullConfig(); })
     .then(function() {
-      _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PhantomCore';
-      setBarStatus(statusBarId,'✅ Salvato e applicato a PhantomCore','ok');
+      _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
+      setBarStatus(statusBarId,'✅ Salvato e applicato a PCU','ok');
       setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
     })
     .catch(function(e) {
-      saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PhantomCore';
+      saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
       setBarStatus(statusBarId,'❌ '+(e.message||'Errore'),'err');
     });
 }
@@ -981,7 +981,7 @@ function loadDrops(more) {
   if (!more) { _allDrops=[]; _dropsPage=0; _dropsFilter=''; document.getElementById('drops-search').value=''; }
   showDropsState('loading');
   fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/log/drops.json?auth='+token+'&orderBy="ts"&limitToLast=200');
+    return fetch(FB_DB_URL+'/pcu_drops.json?auth='+token+'&orderBy="ts"&limitToLast=200');
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
@@ -1010,43 +1010,40 @@ function renderDropsPage() {
 }
 
 function buildDropCard(d) {
-  var result=d.result||''; var resClass=result==='ordered'?'ordered':result==='matched'?'matched':result==='skipped_variant'?'skipped_variant':'skipped';
-  var qKey=(d.queue||'').toUpperCase(); var qClass=qKey==='RFY'?'queue-rfy':qKey==='AA'?'queue-aa':qKey==='DPT'?'queue-dpt':'';
-  var ts=d.ts?new Date(d.ts).toLocaleString('it-IT',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-  var resBadge=result==='ordered'?'<span class="drop-badge res-ordered">🛒 ordinato</span>':result==='matched'?'<span class="drop-badge res-matched">✨ match</span>':'';
-  var card=document.createElement('div'); card.className='drop-card '+resClass;
-  card.innerHTML='<div class="drop-head"><span class="drop-title">'+esc(d.title||d.asin||'—')+'</span><span class="drop-time">'+esc(ts)+'</span></div>' +
-    '<div class="drop-meta">'+(qKey?'<span class="drop-badge '+qClass+'">'+esc(qKey)+'</span>':'')+resBadge+(d.etv!=null?'<span class="drop-etv">€ '+esc(String(d.etv))+'</span>':'')+'</div>' +
+  var result = d.result || (d.ordered ? 'ordered' : d.matched ? 'matched' : 'skipped');
+  var resClass = result === 'ordered' ? 'ordered' : result === 'matched' ? 'matched' : result === 'skipped_variant' ? 'skipped_variant' : 'skipped';
+  var qKey = String(d.queue || '').toUpperCase();
+  var qClass = (qKey === 'RFY' || qKey === 'CPT') ? 'queue-rfy' : (qKey === 'AA' || qKey === 'AI') ? 'queue-aa' : (qKey === 'DPT' || qKey === 'AFA') ? 'queue-dpt' : '';
+  var ts = d.ts ? new Date(d.ts).toLocaleString('it-IT',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+  var resBadge = result === 'ordered' ? '<span class="drop-badge res-ordered">ordinato</span>' : result === 'matched' ? '<span class="drop-badge res-matched">match</span>' : '';
+  var etv = d.etvRaw != null ? d.etvRaw : d.etv;
+  var card = document.createElement('div'); card.className = 'drop-card ' + resClass;
+  card.innerHTML = '<div class="drop-head"><span class="drop-title">'+esc(d.title||d.asin||'-')+'</span><span class="drop-time">'+esc(ts)+'</span></div>' +
+    '<div class="drop-meta">'+(qKey?'<span class="drop-badge '+qClass+'">'+esc(qKey)+'</span>':'')+resBadge+(etv!=null&&etv!==''?'<span class="drop-etv">&euro; '+esc(String(etv))+'</span>':'')+'</div>' +
     (d.cause?'<div class="drop-cause">'+esc(d.cause)+'</div>':'');
   return card;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   HAUL archive (Gist)
-   ══════════════════════════════════════════════════════════════ */
+/* PCU Away - Haul archive from Firebase PCU */
 var _haulOrders=[]; var _haulPage=0; var _haulFilter='';
 
 function loadHaul(force) {
-  if (!cfg.ghToken || !cfg.haulGistId) { showHaulState('not-configured'); return; }
+  if (!cfg.fbEmail || !cfg.fbPassword) { showHaulState('not-configured'); return; }
   if (_haulOrders.length && !force) { showHaulState('body'); renderHaulPage(); return; }
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
-  fetch('https://api.github.com/gists/'+cfg.haulGistId.trim(), { headers: ghHeaders() })
-    .then(function(r){ if(!r.ok) throw new Error('GitHub API: '+r.status); return r.json(); })
+  fbGetToken().then(function(token) {
+    return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
+  }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
-      var file=data.files&&data.files[GIST_HAUL_FILE];
-      if (!file) throw new Error('File '+GIST_HAUL_FILE+' non trovato.\nFai prima un Haul Sync da PhantomCore.');
-      if (file.truncated || !file.content) {
-        return fetch(file.raw_url, { headers: ghHeaders() }).then(function(r){ if(!r.ok) throw new Error('raw_url HTTP '+r.status); return r.text(); }).then(JSON.parse);
-      }
-      return JSON.parse(file.content);
-    })
-    .then(function(rows) {
+      var rows=[];
+      if (data) Object.keys(data).forEach(function(k){ if(data[k]) { var e=Object.assign({},data[k]); e._fbKey=k; rows.push(e); } });
       function pd(s){ var m=(s||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():(new Date(s).getTime()||0); }
-      rows.sort(function(a,b){ var ta=a.ts||pd(a.date); var tb=b.ts||pd(b.date); return tb-ta; });
+      rows.sort(function(a,b){ var ta=a.confirmedAt||a.updatedAt||a.ts||pd(a.date); var tb=b.confirmedAt||b.updatedAt||b.ts||pd(b.date); return tb-ta; });
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
+      setBarStatus('haul-status-bar','OK Haul caricato da Firebase PCU ('+rows.length+' ordini)','ok');
     })
-    .catch(function(e){ setBarStatus('haul-status-bar','❌ '+(e.message||'Errore'),'err'); showHaulState('body'); });
+    .catch(function(e){ setBarStatus('haul-status-bar','Errore: '+(e.message||'Errore'),'err'); showHaulState('body'); });
 }
 
 function showHaulState(s) {
@@ -1063,7 +1060,8 @@ function renderHaulPage() {
   filtered.slice(start, start+HAUL_PAGE).forEach(function(o) {
     var card=document.createElement('div'); card.className='haul-card';
     var asinHtml=o.asin?'<a class="haul-asin" href="https://www.amazon.it/dp/'+esc(o.asin)+'" target="_blank" rel="noreferrer">'+esc(o.asin)+'</a>':'';
-    card.innerHTML='<div class="haul-title">'+esc(o.title||o.asin||'—')+'</div><div class="haul-meta">'+(o.date?'<span class="haul-date">📅 '+esc(o.date)+'</span>':'')+(o.etv!=null?'<span class="haul-etv">€ '+esc(String(o.etv))+'</span>':'')+asinHtml+'</div>';
+    var etvHtml=o.etv!=null?'<span class="haul-etv">&euro; '+esc(String(o.etv))+'</span>':'<span class="haul-etv">N/D</span>';
+    card.innerHTML='<div class="haul-title">'+esc(o.title||o.asin||'-')+'</div><div class="haul-meta">'+(o.date?'<span class="haul-date">'+esc(o.date)+'</span>':'')+etvHtml+asinHtml+'</div>';
     list.appendChild(card);
   });
   _haulPage++;
