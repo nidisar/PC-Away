@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vpcuhaul</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vmonitorhaul</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -585,10 +585,14 @@ function updateHaulBar(cur, mx, amt) {
 }
 
 function parseHaulFromText(body) {
-  /* formato: Haul: 4/8 ... 64.85 */
-  if (cfg.fbEmail && cfg.fbPassword) return; // con Firebase la barra viene dall'archivio Haul, non da messaggi potenzialmente vecchi
-  var m = (body || '').match(/Haul:\s*(\d+)\/(\d+).*?([\d.,]+)/i);
-  if (m) updateHaulBar(parseInt(m[1]), parseInt(m[2]), m[3]);
+  var h = parseHaulTextValue(body);
+  if (h) updateHaulBar(h.current, h.max, h.amount);
+}
+
+function parseHaulTextValue(body) {
+  var m = (body || '').match(/Haul:\s*(\d+)\s*\/\s*(\d+)\D+([\d.,]+)/i);
+  if (!m) return null;
+  return { current: parseInt(m[1], 10), max: parseInt(m[2], 10), amount: m[3] };
 }
 
 var _lastFreshStatusHaulAt = 0;
@@ -604,9 +608,11 @@ function loadPcuStatus() {
     if (status && status.haul && isFreshStatus(status)) {
       updateHaulFromStatus(status.haul);
       _lastFreshStatusHaulAt = Date.now();
+      return status;
     }
+    loadHaulFromMonitorLog();
     return status;
-  }).catch(function() { return null; });
+  }).catch(function() { loadHaulFromMonitorLog(); return null; });
 }
 
 function isFreshStatus(status) {
@@ -619,6 +625,37 @@ function updateHaulFromStatus(haul) {
   var amount = haul.amountRaw != null ? haul.amountRaw : haul.amount;
   if (amount != null && typeof amount === 'number') amount = amount.toFixed(2);
   updateHaulBar(haul.current, haul.max, amount);
+}
+
+function updateHaulFromMonitorRows(rows) {
+  var sorted = (rows || []).slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  for (var i=0; i<sorted.length; i++) {
+    var h = parseHaulTextValue(sorted[i].message || sorted[i].title || '');
+    if (h) { updateHaulBar(h.current, h.max, h.amount); return h; }
+  }
+  return null;
+}
+
+function loadHaulFromMonitorLog() {
+  if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
+  return fbGetToken().then(function(token) {
+    var days = [monitorDayKey(0), monitorDayKey(1), monitorDayKey(2)];
+    return Promise.all(days.map(function(day) {
+      return fetch(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token)
+        .then(function(r){ if(!r.ok) throw new Error('Firebase Monitor: HTTP '+r.status); return r.json(); })
+        .then(function(data){ return data || {}; })
+        .catch(function(){ return {}; });
+    }));
+  }).then(function(daysData) {
+    var rows = [];
+    daysData.forEach(function(data) {
+      Object.keys(data || {}).forEach(function(tier) {
+        var bucket = data[tier] || {};
+        Object.keys(bucket).forEach(function(k) { if (bucket[k]) rows.push(bucket[k]); });
+      });
+    });
+    return updateHaulFromMonitorRows(rows);
+  }).catch(function(){ return null; });
 }
 
 function parseHaulAmount(v) {
@@ -1320,6 +1357,7 @@ function loadMonitor(more) {
     });
     rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
     _monitorRows = rows.slice(0, 300);
+    updateHaulFromMonitorRows(_monitorRows);
     _monitorPage=0; showMonitorState('body'); document.getElementById('monitor-list').innerHTML=''; renderMonitorPage();
     setBarStatus('monitor-status-bar','OK Monitor caricato da Firebase PCU ('+_monitorRows.length+' eventi, ultimi 3 giorni)','ok');
   }).catch(function(e){ setBarStatus('monitor-status-bar','Errore: '+(e.message||'Errore'),'err'); showMonitorState('body'); });
