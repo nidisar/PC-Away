@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vfbconfig</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vfbconfig2</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -979,6 +979,14 @@ function normalizeRemoteConfig(data) {
   base.brands.list = Array.isArray(base.brands.list) ? base.brands.list : [];
   base.advancedRules = Object.assign({}, base.advancedRules, data.advancedRules || {});
   base.advancedRules.rules = Array.isArray(base.advancedRules.rules) ? base.advancedRules.rules : [];
+  base.advancedRules.rules = base.advancedRules.rules.map(function(rule) {
+    rule = Object.assign({}, rule || {});
+    rule.positiveKeywords = normalizeRuleKeywords(rule.positiveKeywords != null ? rule.positiveKeywords : rule.keywords);
+    rule.blacklistKeywords = normalizeRuleKeywords(rule.blacklistKeywords != null ? rule.blacklistKeywords : rule.rejectKeywords);
+    rule.keywords = rule.positiveKeywords.slice();
+    rule.rejectKeywords = rule.blacklistKeywords.slice();
+    return rule;
+  });
   if (data.etv) base.etv = data.etv;
   if (data.categoryWhitelist) base.categoryWhitelist = data.categoryWhitelist;
   if (data.categoryBlacklist) base.categoryBlacklist = data.categoryBlacklist;
@@ -1169,11 +1177,19 @@ document.addEventListener('keydown', function(e) {
   if (e.target.id === 'f-brands-input') addTag('brands');
 });
 
+function normalizeRuleKeywords(value) {
+  if (Array.isArray(value)) return value.map(function(s){ return String(s || '').trim().toLowerCase(); }).filter(Boolean);
+  if (typeof value === 'string') return value.split(',').map(function(s){ return s.trim().toLowerCase(); }).filter(Boolean);
+  return [];
+}
+function ruleKeywordsText(rule, primary, legacy) {
+  return normalizeRuleKeywords(rule && rule[primary] != null ? rule[primary] : rule && rule[legacy]).join(', ');
+}
 function renderRulesList(rules) { var el=document.getElementById('f-rules-list'); el.innerHTML=''; rules.forEach(function(r,i){ el.appendChild(buildRuleCard(r,i)); }); }
 
 function buildRuleCard(rule, idx) {
   var card = document.createElement('div'); card.className='f-rule-card'+(rule.enabled===false?' disabled':''); card.id='f-rule-card-'+idx;
-  var kws=(rule.keywords||[]).join(', '); var rkws=(rule.rejectKeywords||[]).join(', ');
+  var kws=ruleKeywordsText(rule, 'positiveKeywords', 'keywords'); var rkws=ruleKeywordsText(rule, 'blacklistKeywords', 'rejectKeywords');
   card.innerHTML=
     '<div class="f-rule-head" onclick="toggleRuleBody('+idx+')">' +
       '<span class="f-rule-name" id="f-rule-name-disp-'+idx+'">'+esc(rule.name||'(senza nome)')+'</span>' +
@@ -1200,8 +1216,10 @@ function ruleFieldChanged(idx) {
   r.enabled=!!(document.getElementById('f-rule-en-'+idx)||{}).checked;
   r.minEtv =parseFloat((document.getElementById('f-rule-mine-'+idx)||{}).value)||0;
   r.maxEtv =parseFloat((document.getElementById('f-rule-maxe-'+idx)||{}).value)||0;
-  r.keywords      =((document.getElementById('f-rule-kw-'+idx)||{}).value||'').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
-  r.rejectKeywords=((document.getElementById('f-rule-rk-'+idx)||{}).value||'').split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+  r.positiveKeywords = normalizeRuleKeywords((document.getElementById('f-rule-kw-'+idx)||{}).value||'');
+  r.blacklistKeywords = normalizeRuleKeywords((document.getElementById('f-rule-rk-'+idx)||{}).value||'');
+  r.keywords = r.positiveKeywords.slice();
+  r.rejectKeywords = r.blacklistKeywords.slice();
   var disp=document.getElementById('f-rule-name-disp-'+idx); if(disp) disp.textContent=r.name||'(senza nome)';
   var card=document.getElementById('f-rule-card-'+idx); if(card) card.className='f-rule-card'+(r.enabled===false?' disabled':'');
   _fDirty=true;
@@ -1211,7 +1229,7 @@ function addRule() {
   if (!_fData) return;
   if (!_fData.advancedRules) _fData.advancedRules={enabled:true,rules:[]};
   if (!_fData.advancedRules.rules) _fData.advancedRules.rules=[];
-  var nr={name:'',brand:'',keywords:[],minEtv:0,maxEtv:0,ignoreEtv:false,enabled:true,rejectKeywords:[]};
+  var nr={name:'',brand:'',positiveKeywords:[],blacklistKeywords:[],keywords:[],rejectKeywords:[],minEtv:0,maxEtv:0,ignoreEtv:false,enabled:true};
   _fData.advancedRules.rules.push(nr);
   var idx=_fData.advancedRules.rules.length-1;
   document.getElementById('f-rules-list').appendChild(buildRuleCard(nr,idx));
