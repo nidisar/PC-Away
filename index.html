@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vfbconfig2</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vschedcpt</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -347,15 +347,28 @@
       <div id="sched-body" style="display:none">
         <div id="sched-status-bar"></div>
         <div class="f-section">
-          <div class="section-title">⏰ Scheduler CPT (RFY)</div>
-          <div class="f-row2">
-            <div class="f-field"><label>Ora di partenza</label><input type="time" id="sc-start" value="01:00"></div>
-            <div class="f-field"><label>Ripeti ogni (ore)</label><input type="number" id="sc-repeat" min="1" max="24" step="1" value="8"></div>
+          <div class="f-section-header">
+            <div class="section-title">⏰ Scheduler Orario CPT</div>
+            <label class="f-toggle"><input type="checkbox" id="sc-active" onchange="updateCptAwayFieldState()"><div class="f-toggle-track"></div></label>
           </div>
           <div class="f-row2">
-            <div class="f-field"><label>Pre-avvio AR (min)</label><input type="number" id="sc-pre" min="0" max="30" step="1" value="2"><div class="f-hint">Min prima dell'orario</div></div>
-            <div class="f-field"><label>Post-drop AR (min)</label><input type="number" id="sc-post" min="0" max="60" step="1" value="10"><div class="f-hint">Min dopo il drop target</div></div>
+            <div class="f-field"><label>Primo target</label><input type="time" id="sc-start" value="01:00" data-cpt-lock></div>
+            <div class="f-field"><label>Finestra (ore)</label><input type="number" id="sc-repeat" min="1" max="24" step="1" value="8" data-cpt-lock></div>
           </div>
+          <div class="f-field"><label>Frequenza</label><input type="number" id="sc-repeat-min" min="1" max="60" step="1" value="60" data-cpt-lock><div class="f-hint">minuti, con reset fisso al minuto 00</div></div>
+          <div class="f-field">
+            <label>Azione programmata</label>
+            <div class="cmd-grid cmd-grid-3" style="margin-top:6px">
+              <label class="cmd-btn mode-btn"><input style="display:none" type="radio" name="sc-mode" id="sc-mode-ar-pb" value="ar_pb" onchange="updateCptAwayFieldState()" data-cpt-lock> AR + Point Blank</label>
+              <label class="cmd-btn mode-btn"><input style="display:none" type="radio" name="sc-mode" id="sc-mode-ar" value="ar_only" onchange="updateCptAwayFieldState()" data-cpt-lock> Solo AR</label>
+              <label class="cmd-btn mode-btn"><input style="display:none" type="radio" name="sc-mode" id="sc-mode-pb" value="pb_only" onchange="updateCptAwayFieldState()" data-cpt-lock> Solo Point Blank</label>
+            </div>
+          </div>
+          <div class="f-row2" id="sc-ar-window">
+            <div class="f-field"><label>AR da min prima</label><input type="number" id="sc-pre" min="0" max="30" step="1" value="2"><div class="f-hint">Disabilitato in Solo Point Blank</div></div>
+            <div class="f-field"><label>AR fino a min dopo</label><input type="number" id="sc-post" min="1" max="55" step="1" value="10"><div class="f-hint">Disabilitato in Solo Point Blank</div></div>
+          </div>
+          <div class="f-hint" id="sc-lock-hint" style="display:none;color:var(--warn)">Scheduler attivo: disabilitalo e salva per modificare i parametri.</div>
         </div>
         <div class="f-section">
           <div class="f-section-header">
@@ -1090,15 +1103,43 @@ function sendPullFirebaseConfig(statusBarId) {
 /* ════════════════════════════════════════════════════════════════════════════
    SCHEDULER
    ══════════════════════════════════════════════════════════════ */
+function clampCptAwayRepeatMin(value) {
+  var parsed = parseInt(value, 10);
+  if (!isFinite(parsed)) return 60;
+  return Math.max(1, Math.min(60, parsed));
+}
+function getCptAwayActionMode() {
+  var selected = document.querySelector('input[name="sc-mode"]:checked');
+  return selected ? selected.value : 'ar_only';
+}
+function setCptAwayActionMode(mode) {
+  mode = mode || 'ar_only';
+  var el = document.querySelector('input[name="sc-mode"][value="'+mode+'"]') || document.getElementById('sc-mode-ar');
+  if (el) el.checked = true;
+}
+function updateCptAwayFieldState() {
+  var active = !!(document.getElementById('sc-active') || {}).checked;
+  var pbOnly = getCptAwayActionMode() === 'pb_only';
+  document.querySelectorAll('[data-cpt-lock]').forEach(function(el){ el.disabled = active; });
+  ['sc-pre','sc-post'].forEach(function(id){ var el=document.getElementById(id); if(el) el.disabled = active || pbOnly; });
+  var hint = document.getElementById('sc-lock-hint'); if (hint) hint.style.display = active ? '' : 'none';
+  document.querySelectorAll('input[name="sc-mode"]').forEach(function(el){ if (el.parentElement) el.parentElement.classList.toggle('state-on', el.checked); });
+  var win = document.getElementById('sc-ar-window'); if (win) win.style.opacity = pbOnly ? '0.45' : '1';
+}
+
 function populateSchedulerForm() {
   if (!_fData) return;
   var cpt = _fData.arScheduleCpt    || {};
   var hou = _fData.arScheduleHourly || {};
   var man = hou.manual || {};
+  document.getElementById('sc-active').checked    = !!(cpt.active || cpt.enabled);
   document.getElementById('sc-start').value       = cpt.startTime    || '01:00';
   document.getElementById('sc-repeat').value      = cpt.repeatHours  != null ? cpt.repeatHours  : 8;
+  document.getElementById('sc-repeat-min').value  = clampCptAwayRepeatMin(cpt.repeatMin);
   document.getElementById('sc-pre').value         = cpt.preMinutes   != null ? cpt.preMinutes   : 2;
   document.getElementById('sc-post').value        = cpt.postMinutes  != null ? cpt.postMinutes  : 10;
+  setCptAwayActionMode(cpt.actionMode || (cpt.pointBlankAr ? 'ar_pb' : 'ar_only'));
+  updateCptAwayFieldState();
   document.getElementById('sc-hourly-en').checked = !!hou.enabled;
   document.getElementById('sc-h-pre').value       = hou.preMinutes   != null ? hou.preMinutes   : 3;
   document.getElementById('sc-h-jitter').value    = hou.jitterSec    != null ? hou.jitterSec    : 90;
@@ -1113,10 +1154,17 @@ function saveScheduler() {
   if (!_fData.arScheduleCpt)    _fData.arScheduleCpt    = {};
   if (!_fData.arScheduleHourly) _fData.arScheduleHourly = {};
   if (!_fData.arScheduleHourly.manual) _fData.arScheduleHourly.manual = {};
+  var cptMode = getCptAwayActionMode();
+  _fData.arScheduleCpt.active      = !!document.getElementById('sc-active').checked;
+  _fData.arScheduleCpt.enabled     = _fData.arScheduleCpt.active;
   _fData.arScheduleCpt.startTime   = document.getElementById('sc-start').value || '01:00';
   _fData.arScheduleCpt.repeatHours = parseInt(document.getElementById('sc-repeat').value)  || 8;
-  _fData.arScheduleCpt.preMinutes  = parseInt(document.getElementById('sc-pre').value)     || 0;
-  _fData.arScheduleCpt.postMinutes = parseInt(document.getElementById('sc-post').value)    || 0;
+  _fData.arScheduleCpt.repeatMin   = clampCptAwayRepeatMin(document.getElementById('sc-repeat-min').value);
+  _fData.arScheduleCpt.preMinutes  = document.getElementById('sc-pre').value !== '' ? parseInt(document.getElementById('sc-pre').value) : 2;
+  _fData.arScheduleCpt.postMinutes = parseInt(document.getElementById('sc-post').value)    || 10;
+  _fData.arScheduleCpt.actionMode = cptMode;
+  _fData.arScheduleCpt.pointBlankAr = cptMode !== 'ar_only';
+  _fData.arScheduleCpt.autorefreshEnabled = cptMode !== 'pb_only';
   _fData.arScheduleHourly.enabled      = document.getElementById('sc-hourly-en').checked;
   _fData.arScheduleHourly.preMinutes   = parseInt(document.getElementById('sc-h-pre').value)    || 0;
   _fData.arScheduleHourly.jitterSec    = parseInt(document.getElementById('sc-h-jitter').value) || 0;
