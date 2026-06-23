@@ -204,6 +204,15 @@
     .drop-etv { font-size: 12px; color: var(--text2); }
     .drop-cause { font-size: 11px; color: var(--text2); margin-top: 4px; font-style: italic; }
 
+    .monitor-list { display: flex; flex-direction: column; gap: 8px; }
+    .monitor-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; border-left: 3px solid var(--border); }
+    .monitor-card.important { border-left-color: var(--aa); }
+    .monitor-card.error { border-left-color: var(--accent); }
+    .monitor-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+    .monitor-meta { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: .4px; }
+    .monitor-time { font-size: 10px; color: var(--text2); white-space: nowrap; }
+    .monitor-msg { font-size: 12px; color: var(--text); line-height: 1.35; word-break: break-word; }
+
     .haul-list { display: flex; flex-direction: column; gap: 8px; }
     .haul-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
     .haul-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; word-break: break-word; }
@@ -271,6 +280,7 @@
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgGist()"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
     <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadHaul()">     <span class="ticon">📦</span>Haul</button>
+    <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadMonitor()">  <span class="ticon">M</span>Monitor</button>
     <button id="tab-btn-settings"                 onclick="switchTab('settings',this)">            <span class="ticon">⚙️</span>Info</button>
   </div>
 
@@ -428,6 +438,18 @@
         <button class="list-load-more" id="haul-more-btn" onclick="renderHaulPage()" style="display:none">Carica altri…</button>
       </div>
     </div>
+    <!-- MONITOR -->
+    <div class="tab-panel" id="tab-monitor">
+      <div id="monitor-not-configured" class="not-configured" style="display:none">Configura <strong>Firebase Email</strong> e <strong>Password</strong> nelle Impostazioni.</div>
+      <div id="monitor-loading" class="not-configured" style="display:none">Caricamento Monitor...</div>
+      <div id="monitor-body" style="display:none">
+        <div id="monitor-status-bar"></div>
+        <input class="list-search" id="monitor-search" type="search" placeholder="Cerca nel Monitor..." oninput="filterMonitor()">
+        <div class="monitor-list" id="monitor-list"></div>
+        <button class="list-load-more" id="monitor-more-btn" onclick="renderMonitorPage()" style="display:none">Carica altri...</button>
+      </div>
+    </div>
+
 
     <!-- ── SETTINGS ── -->
     <div class="tab-panel" id="tab-settings">
@@ -488,6 +510,7 @@ var FB_API_KEY  = 'AIzaSyBjQ-Ev2RdlimCKg6nl6Wxu3bCGtdiELnY';
 var FB_DB_URL   = 'https://phantom-core-cf159-default-rtdb.europe-west1.firebasedatabase.app';
 var DROPS_PAGE  = 80;
 var HAUL_PAGE   = 60;
+var MONITOR_PAGE = 80;
 var SSEID_KEY   = 'pcaway_sseid';
 
 /* ── Config ── */
@@ -981,12 +1004,13 @@ function loadDrops(more) {
   if (!more) { _allDrops=[]; _dropsPage=0; _dropsFilter=''; document.getElementById('drops-search').value=''; }
   showDropsState('loading');
   fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_drops.json?auth='+token+'&orderBy="ts"&limitToLast=200');
+    return fetch(FB_DB_URL+'/pcu_drops.json?auth='+token);
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
       if (data) Object.keys(data).forEach(function(k){ var e=Object.assign({},data[k]); e._fbKey=k; rows.push(e); });
       rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+      rows = rows.slice(0, 200);
       _allDrops = more ? _allDrops.concat(rows) : rows;
       _dropsPage=0; showDropsState('body'); document.getElementById('drop-list').innerHTML=''; renderDropsPage();
     })
@@ -1071,6 +1095,74 @@ function renderHaulPage() {
 /* ══════════════════════════════════════════════════════════════
    SETTINGS
    ══════════════════════════════════════════════════════════════ */
+/* PCU Away - Monitor archive from Firebase PCU */
+var _monitorRows=[]; var _monitorPage=0; var _monitorFilter='';
+
+function monitorDayKey(offsetDays) {
+  var d = new Date(Date.now() - offsetDays * 86400000);
+  return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2);
+}
+
+function loadMonitor(more) {
+  if (!cfg.fbEmail || !cfg.fbPassword) { showMonitorState('not-configured'); return; }
+  if (!more) { _monitorRows=[]; _monitorPage=0; _monitorFilter=''; var s=document.getElementById('monitor-search'); if(s) s.value=''; }
+  showMonitorState('loading');
+  fbGetToken().then(function(token) {
+    var days = [monitorDayKey(0), monitorDayKey(1), monitorDayKey(2)];
+    return Promise.all(days.map(function(day) {
+      return fetch(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token)
+        .then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
+        .then(function(data){ return { day: day, data: data || {} }; });
+    }));
+  }).then(function(dayRows) {
+    var rows=[];
+    dayRows.forEach(function(dayData) {
+      Object.keys(dayData.data || {}).forEach(function(tier) {
+        var bucket = dayData.data[tier] || {};
+        Object.keys(bucket).forEach(function(k) {
+          var e = Object.assign({}, bucket[k]);
+          e._fbKey = k; e._day = dayData.day; e._tier = tier;
+          rows.push(e);
+        });
+      });
+    });
+    rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+    _monitorRows = rows.slice(0, 300);
+    _monitorPage=0; showMonitorState('body'); document.getElementById('monitor-list').innerHTML=''; renderMonitorPage();
+    setBarStatus('monitor-status-bar','OK Monitor caricato da Firebase PCU ('+_monitorRows.length+' eventi, ultimi 3 giorni)','ok');
+  }).catch(function(e){ setBarStatus('monitor-status-bar','Errore: '+(e.message||'Errore'),'err'); showMonitorState('body'); });
+}
+
+function showMonitorState(s) {
+  document.getElementById('monitor-not-configured').style.display = s==='not-configured' ? '' : 'none';
+  document.getElementById('monitor-loading').style.display        = s==='loading'         ? '' : 'none';
+  document.getElementById('monitor-body').style.display           = s==='body'            ? '' : 'none';
+}
+
+function filterMonitor() { _monitorFilter=(document.getElementById('monitor-search').value||'').toLowerCase(); _monitorPage=0; document.getElementById('monitor-list').innerHTML=''; renderMonitorPage(); }
+
+function renderMonitorPage() {
+  var filtered = _monitorRows.filter(function(e) {
+    if (!_monitorFilter) return true;
+    return [e.message,e.source,e.category,e.type,e.queue,e.asin,e.title,e.sessionId,e.operationId].join(' ').toLowerCase().indexOf(_monitorFilter) !== -1;
+  });
+  var list=document.getElementById('monitor-list'); var start=_monitorPage*MONITOR_PAGE;
+  filtered.slice(start, start+MONITOR_PAGE).forEach(function(e){ list.appendChild(buildMonitorCard(e)); });
+  _monitorPage++;
+  document.getElementById('monitor-more-btn').style.display = filtered.length > _monitorPage*MONITOR_PAGE ? '' : 'none';
+}
+
+function buildMonitorCard(e) {
+  var d = e.ts ? new Date(e.ts) : null;
+  var ts = d ? d.toLocaleString('it-IT',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+  var level = String(e.level || e._tier || '').toLowerCase();
+  var card=document.createElement('div'); card.className='monitor-card '+(level==='error'?'error':(level==='important'?'important':''));
+  var meta=[e.source,e.category,e.type,e.queue,e.asin].filter(Boolean).join(' / ');
+  card.innerHTML='<div class="monitor-head"><span class="monitor-meta">'+esc(meta||'-')+'</span><span class="monitor-time">'+esc(ts)+'</span></div>'+
+    '<div class="monitor-msg">'+esc(e.message||e.title||'-')+'</div>';
+  return card;
+}
+
 function loadSettingsToForm() {
   document.getElementById('s-token').value        = cfg.token      || '';
   document.getElementById('s-cpt').value          = cfg.topicCpt   || '';
