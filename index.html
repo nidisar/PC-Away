@@ -264,7 +264,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vschedapply</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vschedapply2</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -1027,20 +1027,13 @@ function filterConfigSubset(data) {
 function loadCfgGist(force) { return loadCfgCloud(force); } // legacy alias: i tab ora usano Firebase
 
 function loadCfgCloud(force) {
-  if (!cfg.fbEmail || !cfg.fbPassword) { ['sched','filters'].forEach(function(ns){ showNs(ns,'not-configured'); }); return; }
   if (_fData && !force) { showNs('sched','body'); populateSchedulerForm(); showNs('filters','body'); renderFilters(); return; }
   if (_cfgLoading && !force) return;
   _cfgLoading = true;
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
-  fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL + '/pcu_config/current.json?auth=' + token)
-      .then(function(r){ if(!r.ok) throw new Error('Firebase config: HTTP ' + r.status); return r.json(); })
-      .then(function(data) {
-        if (data) return data;
-        return fetch(FB_DB_URL + '/pcu_filters/config.json?auth=' + token)
-          .then(function(fr){ if(!fr.ok) throw new Error('Firebase filtri: HTTP ' + fr.status); return fr.json(); })
-          .then(function(filters){ return filters || {}; });
-      });
+  fbDbRead('/pcu_config/current').then(function(data) {
+    if (data) return data;
+    return fbDbRead('/pcu_filters/config').then(function(filters){ return filters || {}; });
   }).then(function(data) {
     _fData = normalizeRemoteConfig(data); _fDirty = false; _cfgLoading = false;
     showNs('sched','body'); populateSchedulerForm();
@@ -1054,7 +1047,6 @@ function loadCfgCloud(force) {
     });
   });
 }
-
 function showNs(ns, what) {
   var p = ns === 'sched' ? 'sched' : 'filters';
   var nc = document.getElementById(p+'-not-configured');
@@ -1069,23 +1061,47 @@ function setBarStatus(barId, msg, type) {
   var bar = document.getElementById(barId); if (!bar) return;
   bar.innerHTML = msg ? '<div class="status-bar '+(type||'')+'">'+esc(msg)+'</div>' : '';
 }
+function fbDbUrl(path, token) {
+  return FB_DB_URL + path + '.json' + (token ? '?auth=' + encodeURIComponent(token) : '');
+}
+function fbTokenMaybe() {
+  return fbGetToken().catch(function(){ return null; });
+}
+function fbDbRequest(path, options) {
+  options = options || {};
+  return fbTokenMaybe().then(function(token) {
+    return fetch(fbDbUrl(path, token), options).then(function(r) {
+      if (r.ok) return r;
+      if (token) {
+        return fetch(fbDbUrl(path, null), options).then(function(r2) {
+          if (r2.ok) return r2;
+          throw new Error('Firebase DB ' + path + ': HTTP ' + r2.status);
+        });
+      }
+      throw new Error('Firebase DB ' + path + ': HTTP ' + r.status);
+    });
+  });
+}
+function fbDbRead(path) {
+  return fbDbRequest(path).then(function(r){ return r.json(); });
+}
+function fbDbWrite(path, method, payload) {
+  return fbDbRequest(path, {
+    method: method || 'PUT',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify(payload)
+  }).then(function(){ return true; });
+}
 function patchGistAndPull(saveBtn, statusBarId) { return patchFirebaseAndPull(saveBtn, statusBarId); } // legacy alias
 
 function patchFirebaseAndPull(saveBtn, statusBarId) {
-  if (!cfg.fbEmail || !cfg.fbPassword) { setBarStatus(statusBarId,'Configura Firebase Email e Password','err'); return; }
   saveBtn.disabled = true; saveBtn.textContent = '⏳ Salvataggio…'; setBarStatus(statusBarId,'');
   var payload = normalizeRemoteConfig(_fData);
   payload.updatedAt = Date.now(); payload.schema = 'pcu_config_v1'; payload.source = 'pcu-away';
-  fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL + '/pcu_config/current.json?auth=' + token, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-    }).then(function(r){ if(!r.ok) throw new Error('Firebase config: HTTP ' + r.status); return token; });
-  }).then(function(token) {
-    return fetch(FB_DB_URL + '/pcu_filters/config.json?auth=' + token, {
-      method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(filterConfigSubset(payload))
-    }).then(function(r){ if(!r.ok) throw new Error('Firebase filtri: HTTP ' + r.status); return token; });
-  }).then(function(token) {
-    return sendApplyConfigCommands(statusBarId, token);
+  fbDbWrite('/pcu_config/current', 'PUT', payload).then(function() {
+    return fbDbWrite('/pcu_filters/config', 'PUT', filterConfigSubset(payload));
+  }).then(function() {
+    return sendApplyConfigCommands(statusBarId);
   }).then(function() {
     _fData = payload; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
     setBarStatus(statusBarId,'✅ Salvato su Firebase e comando apply inviato a PCU','ok');
@@ -1096,16 +1112,11 @@ function patchFirebaseAndPull(saveBtn, statusBarId) {
   });
 }
 
-function sendApplyConfigCommands(statusBarId, token) {
-  var firebaseCmd = fetch(FB_DB_URL + '/pcu_commands.json?auth=' + token, {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' })
-  }).then(function(r){ if(!r.ok) throw new Error('Firebase command: HTTP ' + r.status); });
-  return firebaseCmd.then(function() {
+function sendApplyConfigCommands(statusBarId) {
+  return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' }).then(function() {
     return sendPullFirebaseConfig(statusBarId).catch(function(){ return null; });
   });
 }
-
 function sendPullFirebaseConfig(statusBarId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) return Promise.resolve();
