@@ -279,8 +279,8 @@
     <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgGist()"><span class="ticon">⏰</span>Sched</button>
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgGist()"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
-    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadHaul()">     <span class="ticon">📦</span>Haul</button>
-    <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadMonitor()">  <span class="ticon">M</span>Monitor</button>
+    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul()">     <span class="ticon">📦</span>Haul</button>
+    <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
     <button id="tab-btn-settings"                 onclick="switchTab('settings',this)">            <span class="ticon">⚙️</span>Info</button>
   </div>
 
@@ -537,7 +537,7 @@ function showApp() { loadCfg(); document.getElementById('login-screen').style.di
 
 /* ── Init ── */
 function initApp() {
-  loadSettingsToForm(); updatePushStatusBar();
+  loadSettingsToForm(); updatePushStatusBar(); loadPcuStatus();
   loadSseIds(); startSSE();
   registerSW(); listenSWMessages();
   document.addEventListener('visibilitychange', function() {
@@ -572,6 +572,26 @@ function parseHaulFromText(body) {
   /* formato: 🎁 Haul: 4/8 · €64.85 */
   var m = (body || '').match(/🎁 Haul: (\d+)\/(\d+) · €([\d.]+)/);
   if (m) updateHaulBar(parseInt(m[1]), parseInt(m[2]), m[3]);
+}
+
+function loadPcuStatus() {
+  if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
+  return fbGetToken().then(function(token) {
+    return fetch(FB_DB_URL+'/pcu_status.json?auth='+token);
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Firebase status: HTTP '+r.status);
+    return r.json();
+  }).then(function(status) {
+    if (status && status.haul) updateHaulFromStatus(status.haul);
+    return status;
+  }).catch(function() { return null; });
+}
+
+function updateHaulFromStatus(haul) {
+  if (!haul) return;
+  var amount = haul.amountRaw != null ? haul.amountRaw : haul.amount;
+  if (amount != null && typeof amount === 'number') amount = amount.toFixed(2);
+  updateHaulBar(haul.current, haul.max, amount);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1065,6 +1085,7 @@ function loadHaul(force) {
       rows.sort(function(a,b){ var ta=a.confirmedAt||a.updatedAt||a.ts||pd(a.date); var tb=b.confirmedAt||b.updatedAt||b.ts||pd(b.date); return tb-ta; });
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
+      loadPcuStatus();
       setBarStatus('haul-status-bar','OK Haul caricato da Firebase PCU ('+rows.length+' ordini)','ok');
     })
     .catch(function(e){ setBarStatus('haul-status-bar','Errore: '+(e.message||'Errore'),'err'); showHaulState('body'); });
