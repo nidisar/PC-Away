@@ -141,7 +141,11 @@
     .f-field input:focus { border-color: var(--accent); }
     .f-hint { font-size: 10px; color: var(--text2); margin-top: 3px; }
     .f-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .f-save-btn { width: 100%; padding: 14px; border-radius: 10px; background: var(--green); color: #fff; font-size: 15px; font-weight: 700; border: none; cursor: pointer; margin-bottom: 8px; }
+    .sched-mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 6px; }
+    .sched-mode-btn { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-size: 14px; font-weight: 600; text-align: center; cursor: pointer; line-height: 1.25; }
+    .sched-mode-btn.state-on { border-color: var(--accent); background: rgba(233,69,96,.10); color: var(--text); box-shadow: none; opacity: 1; }
+    .sched-mode-btn input { display: none; }
+    .sched-mode-btn:active { background: var(--bg3); }    .f-save-btn { width: 100%; padding: 14px; border-radius: 10px; background: var(--green); color: #fff; font-size: 15px; font-weight: 700; border: none; cursor: pointer; margin-bottom: 8px; }
     .f-save-btn:active { filter: brightness(.9); }
     .f-save-btn:disabled { opacity: .5; cursor: default; }
     .f-reload-btn { width: 100%; padding: 11px; border-radius: 10px; background: var(--bg2); color: var(--text2); font-size: 13px; border: 1px solid var(--border); cursor: pointer; }
@@ -260,7 +264,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vschednotoggles</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vschedapply</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -358,10 +362,10 @@
           <div class="f-field"><label>Frequenza</label><input type="number" id="sc-repeat-min" min="1" max="60" step="1" value="60" data-cpt-lock><div class="f-hint">minuti, con reset fisso al minuto 00</div></div>
           <div class="f-field">
             <label>Azione programmata</label>
-            <div class="cmd-grid cmd-grid-3" style="margin-top:6px">
-              <label class="cmd-btn mode-btn"><input style="display:none" type="radio" name="sc-mode" id="sc-mode-ar-pb" value="ar_pb" onchange="updateCptAwayFieldState()" data-cpt-lock> AR + Point Blank</label>
-              <label class="cmd-btn mode-btn"><input style="display:none" type="radio" name="sc-mode" id="sc-mode-ar" value="ar_only" onchange="updateCptAwayFieldState()" data-cpt-lock> Solo AR</label>
-              <label class="cmd-btn mode-btn"><input style="display:none" type="radio" name="sc-mode" id="sc-mode-pb" value="pb_only" onchange="updateCptAwayFieldState()" data-cpt-lock> Solo Point Blank</label>
+            <div class="sched-mode-grid">
+              <label class="sched-mode-btn"><input type="radio" name="sc-mode" id="sc-mode-ar-pb" value="ar_pb" onchange="updateCptAwayFieldState()" data-cpt-lock> AR + Point Blank</label>
+              <label class="sched-mode-btn"><input type="radio" name="sc-mode" id="sc-mode-ar" value="ar_only" onchange="updateCptAwayFieldState()" data-cpt-lock> Solo AR</label>
+              <label class="sched-mode-btn"><input type="radio" name="sc-mode" id="sc-mode-pb" value="pb_only" onchange="updateCptAwayFieldState()" data-cpt-lock> Solo Point Blank</label>
             </div>
           </div>
           <div class="f-row2" id="sc-ar-window">
@@ -1079,12 +1083,12 @@ function patchFirebaseAndPull(saveBtn, statusBarId) {
   }).then(function(token) {
     return fetch(FB_DB_URL + '/pcu_filters/config.json?auth=' + token, {
       method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(filterConfigSubset(payload))
-    }).then(function(r){ if(!r.ok) throw new Error('Firebase filtri: HTTP ' + r.status); });
-  }).then(function() {
-    return sendPullFirebaseConfig(statusBarId);
+    }).then(function(r){ if(!r.ok) throw new Error('Firebase filtri: HTTP ' + r.status); return token; });
+  }).then(function(token) {
+    return sendApplyConfigCommands(statusBarId, token);
   }).then(function() {
     _fData = payload; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
-    setBarStatus(statusBarId,'✅ Salvato su Firebase e comando inviato a PCU','ok');
+    setBarStatus(statusBarId,'✅ Salvato su Firebase e comando apply inviato a PCU','ok');
     setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
   }).catch(function(e) {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
@@ -1092,9 +1096,19 @@ function patchFirebaseAndPull(saveBtn, statusBarId) {
   });
 }
 
+function sendApplyConfigCommands(statusBarId, token) {
+  var firebaseCmd = fetch(FB_DB_URL + '/pcu_commands.json?auth=' + token, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' })
+  }).then(function(r){ if(!r.ok) throw new Error('Firebase command: HTTP ' + r.status); });
+  return firebaseCmd.then(function() {
+    return sendPullFirebaseConfig(statusBarId).catch(function(){ return null; });
+  });
+}
+
 function sendPullFirebaseConfig(statusBarId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
-  if (!topic) { setBarStatus(statusBarId,'⚠️ Salvato su Firebase — topic comandi non configurato','warn'); return Promise.resolve(); }
+  if (!topic) return Promise.resolve();
   var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
   return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'pull-firebase-config' })
     .then(function(r){ if(!r.ok) throw new Error('ntfy '+r.status); });
