@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v8d4d1a3</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vstartup</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -537,12 +537,29 @@ function showApp() { loadCfg(); document.getElementById('login-screen').style.di
 
 /* ── Init ── */
 function initApp() {
-  loadSettingsToForm(); updatePushStatusBar(); loadPcuStatus(); loadHaulSummary();
-  loadSseIds(); startSSE();
+  loadSettingsToForm(); updatePushStatusBar(); initializeCommandStates();
+  loadSseIds(); refreshStartupData();
   registerSW(); listenSWMessages();
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') startSSE();
+    if (document.visibilityState === 'visible') refreshStartupData();
   });
+}
+
+function refreshStartupData() {
+  startSSE();
+  preloadNtfyHistory();
+  loadPcuStatus();
+  loadHaulSummary();
+  loadDrops();
+}
+
+function configuredTopics() {
+  return [
+    { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
+    { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
+    { id: cfg.topicAa,  key: 'aa',  label: 'AA'  },
+    { id: cfg.topicCmd, key: 'cmd', label: 'CMD' }
+  ].filter(function(t){ return t.id && t.id.trim(); });
 }
 
 /* ── Tabs ── */
@@ -668,12 +685,8 @@ function stopSSE() { _sseAborts.forEach(function(ac){ try{ac.abort();}catch(e){}
 
 function startSSE() {
   stopSSE();
-  var topics = [
-    { id: cfg.topicCpt, key: 'cpt', label: 'CPT' },
-    { id: cfg.topicDpt, key: 'dpt', label: 'DPT' },
-    { id: cfg.topicAa,  key: 'aa',  label: 'AA'  },
-    { id: cfg.topicCmd, key: 'cmd', label: 'CMD' }
-  ].filter(function(t){ return t.id && t.id.trim(); });
+  setFeedBootstrapState();
+  var topics = configuredTopics();
   if (!topics.length) { setConnDot('off'); return; }
   var okCount = 0;
   topics.forEach(function(t) {
@@ -723,8 +736,60 @@ function setConnDot(state) {
   lbl.textContent = state === 'green' ? 'Connesso' : state === 'red' ? 'Errore' : '—';
 }
 
+function setFeedBootstrapState() {
+  var empty = document.getElementById('feed-empty');
+  if (!empty) return;
+  if (!configuredTopics().length) {
+    empty.style.display = '';
+    empty.textContent = 'Configura i topic nelle Impostazioni.';
+  } else if (!document.querySelector('#feed-list .feed-item')) {
+    empty.style.display = '';
+    empty.textContent = 'Caricamento feed...';
+  }
+}
+
+function preloadNtfyHistory() {
+  var topics = configuredTopics();
+  if (!topics.length) return Promise.resolve([]);
+  var headers = {}; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
+  return Promise.all(topics.map(function(t) {
+    var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=1&since=12h';
+    return fetch(url, { headers: headers })
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+      .then(function(text) {
+        return text.split('\n').map(function(line){ line=line.trim(); if(!line) return null; try { return JSON.parse(line); } catch(e) { return null; } })
+          .filter(function(msg){ return msg && msg.event === 'message'; })
+          .slice(-20)
+          .map(function(msg){ return { msg: msg, topic: t }; });
+      }).catch(function(){ return []; });
+  })).then(function(groups) {
+    var items = []; var hasCmdState = false;
+    groups.forEach(function(g){ items = items.concat(g); });
+    items.sort(function(a,b){ return (a.msg.time||0) - (b.msg.time||0); });
+    items.forEach(function(item) {
+      addFeedItem(item.msg, item.topic.key, item.topic.label, true);
+      parseHaulFromText(item.msg.message || '');
+      if (item.topic.key === 'cmd') { hasCmdState = true; parseBotStato(item.msg); }
+    });
+    var empty = document.getElementById('feed-empty');
+    if (empty && !items.length && !document.querySelector('#feed-list .feed-item')) {
+      empty.style.display = '';
+      empty.textContent = 'Nessun messaggio recente.';
+    }
+    var cf = document.getElementById('cmd-feedback');
+    if (cf && !hasCmdState && cf.textContent.indexOf('caricamento') !== -1) {
+      cf.style.color='var(--text2)'; cf.textContent='Nessuno stato bot recente.';
+    }
+    return items;
+  });
+}
+
+var _feedSeen = {};
 var _orderActions = {};
-function addFeedItem(msg, qKey, qLabel) {
+function addFeedItem(msg, qKey, qLabel, silent) {
+  var feedKey = msg.id || ((msg.time||'') + ':' + qKey + ':' + (msg.title||'') + ':' + (msg.message||''));
+  if (_feedSeen[feedKey]) return;
+  _feedSeen[feedKey] = true;
   var list = document.getElementById('feed-list'); var empty = document.getElementById('feed-empty');
   if (empty) empty.style.display = 'none';
   var t = new Date((msg.time || (Date.now()/1000)) * 1000);
@@ -744,7 +809,7 @@ function addFeedItem(msg, qKey, qLabel) {
   el.innerHTML = '<div class="fi-header"><div class="fi-left"><span class="fi-tag">' + qLabel + '</span><span class="fi-title">' + esc(msg.title||'') + '</span></div><span class="fi-time">' + ts + '</span></div><div class="fi-body">' + esc(msg.message||'') + '</div>' + imgHtml + orderHtml;
   list.insertBefore(el, list.firstChild);
   while (list.children.length > MAX_FEED + 1) list.removeChild(list.lastChild);
-  playTone(qKey);
+  if (!silent) playTone(qKey);
 }
 
 function execOrder(key) {
@@ -762,6 +827,16 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
    ══════════════════════════════════════════════════════════════ */
 var _cmdStateMap = { 'ar rfy':'ar-rfy','ar afa':'ar-afa','ar ai':'ar-ai','sched rfy':'sched-rfy','sched aadpt':'sched-aadpt','det rfy':'det-rfy','det aadpt':'det-aadpt' };
 var _MODES = ['fullauto','presidio','remoto'];
+function initializeCommandStates() {
+  document.querySelectorAll('[data-state-key]').forEach(function(btn) {
+    btn.classList.remove('state-on');
+    btn.classList.add('state-off');
+  });
+  setActiveMode('presidio');
+  var el = document.getElementById('cmd-feedback');
+  if (el) { el.style.color='var(--text2)'; el.textContent='Stato bot in caricamento dallo storico...'; }
+}
+
 // Evidenzia in modo esclusivo il bottone del modo hide attivo
 function setActiveMode(mode) {
   document.querySelectorAll('.mode-btn').forEach(function(b) {
@@ -1311,7 +1386,7 @@ function saveSettings() {
   _sseLastId={}; saveSseIds();
   fb.style.color='var(--dpt)'; fb.textContent='✅ Impostazioni salvate';
   setTimeout(function(){ fb.textContent=''; }, 3000);
-  startSSE(); resubscribePush();
+  refreshStartupData(); resubscribePush();
 }
 
 /* ══════════════════════════════════════════════════════════════
