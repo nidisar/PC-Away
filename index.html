@@ -260,7 +260,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vstartup</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vhaul</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -548,8 +548,7 @@ function initApp() {
 function refreshStartupData() {
   startSSE();
   preloadNtfyHistory();
-  loadPcuStatus();
-  loadHaulSummary();
+  loadPcuStatus().then(function(){ loadHaulSummary(); });
   loadDrops();
 }
 
@@ -592,6 +591,8 @@ function parseHaulFromText(body) {
   if (m) updateHaulBar(parseInt(m[1]), parseInt(m[2]), m[3]);
 }
 
+var _lastFreshStatusHaulAt = 0;
+
 function loadPcuStatus() {
   if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
   return fbGetToken().then(function(token) {
@@ -600,8 +601,17 @@ function loadPcuStatus() {
     if (!r.ok) throw new Error('Firebase status: HTTP '+r.status);
     return r.json();
   }).then(function(status) {
+    if (status && status.haul && isFreshStatus(status)) {
+      updateHaulFromStatus(status.haul);
+      _lastFreshStatusHaulAt = Date.now();
+    }
     return status;
   }).catch(function() { return null; });
+}
+
+function isFreshStatus(status) {
+  var t = Number(status && status.lastUpdate || 0);
+  return !!t && (Date.now() - t) < 6 * 60 * 60 * 1000;
 }
 
 function updateHaulFromStatus(haul) {
@@ -624,13 +634,14 @@ function parseHaulAmount(v) {
 
 function haulDateKey(row) {
   if (!row) return '';
-  var ts = Number(row.confirmedAt || row.updatedAt || row.ts || 0);
+  var m = String(row.date || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  var ts = Number(row.confirmedAt || row.ts || row.updatedAt || 0);
   if (ts) {
+    if (ts < 100000000000) ts *= 1000;
     var d = new Date(ts);
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
-  var m = String(row.date || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
   return '';
 }
 
@@ -653,6 +664,7 @@ function updateHaulBarFromOrders(rows) {
     var n = parseHaulAmount(o.etv);
     if (n != null) amount += n;
   });
+  if (count === 0 && _lastFreshStatusHaulAt && (Date.now() - _lastFreshStatusHaulAt) < 15000) return;
   updateHaulBar(count, 8, amount.toFixed(2));
 }
 
