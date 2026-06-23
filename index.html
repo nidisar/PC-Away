@@ -423,7 +423,7 @@
         <div id="drops-status-bar"></div>
         <input class="list-search" id="drops-search" type="search" placeholder="🔍 Cerca titolo…" oninput="filterDrops()">
         <div class="drop-list" id="drop-list"></div>
-        <button class="list-load-more" id="drops-more-btn" onclick="loadDrops(true)" style="display:none">Carica altri…</button>
+        <button class="list-load-more" id="drops-more-btn" onclick="renderDropsPage()" style="display:none">Carica altri...</button>
       </div>
     </div>
 
@@ -537,7 +537,7 @@ function showApp() { loadCfg(); document.getElementById('login-screen').style.di
 
 /* ── Init ── */
 function initApp() {
-  loadSettingsToForm(); updatePushStatusBar(); loadPcuStatus();
+  loadSettingsToForm(); updatePushStatusBar(); loadPcuStatus(); loadHaulSummary();
   loadSseIds(); startSSE();
   registerSW(); listenSWMessages();
   document.addEventListener('visibilitychange', function() {
@@ -569,8 +569,9 @@ function updateHaulBar(cur, mx, amt) {
 }
 
 function parseHaulFromText(body) {
-  /* formato: 🎁 Haul: 4/8 · €64.85 */
-  var m = (body || '').match(/🎁 Haul: (\d+)\/(\d+) · €([\d.]+)/);
+  /* formato: Haul: 4/8 ... 64.85 */
+  if (cfg.fbEmail && cfg.fbPassword) return; // con Firebase la barra viene dall'archivio Haul, non da messaggi potenzialmente vecchi
+  var m = (body || '').match(/Haul:\s*(\d+)\/(\d+).*?([\d.,]+)/i);
   if (m) updateHaulBar(parseInt(m[1]), parseInt(m[2]), m[3]);
 }
 
@@ -582,7 +583,6 @@ function loadPcuStatus() {
     if (!r.ok) throw new Error('Firebase status: HTTP '+r.status);
     return r.json();
   }).then(function(status) {
-    if (status && status.haul) updateHaulFromStatus(status.haul);
     return status;
   }).catch(function() { return null; });
 }
@@ -593,6 +593,67 @@ function updateHaulFromStatus(haul) {
   if (amount != null && typeof amount === 'number') amount = amount.toFixed(2);
   updateHaulBar(haul.current, haul.max, amount);
 }
+
+function parseHaulAmount(v) {
+  if (v == null || v === '') return null;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  var s = String(v).replace(/[^0-9,.-]/g, '').trim();
+  if (!s) return null;
+  if (s.indexOf(',') !== -1 && s.indexOf('.') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+  else s = s.replace(',', '.');
+  var n = parseFloat(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+function haulDateKey(row) {
+  if (!row) return '';
+  var ts = Number(row.confirmedAt || row.updatedAt || row.ts || 0);
+  if (ts) {
+    var d = new Date(ts);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  var m = String(row.date || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) return m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+  return '';
+}
+
+function todayKey() {
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function updateHaulBarFromOrders(rows) {
+  var today = todayKey();
+  var seen = {};
+  var count = 0;
+  var amount = 0;
+  (rows || []).forEach(function(o, idx) {
+    if (haulDateKey(o) !== today) return;
+    var key = (o.asin && String(o.asin).trim()) || ('title:'+String(o.title||'').trim().toLowerCase()+':'+idx);
+    if (seen[key]) return;
+    seen[key] = true;
+    count++;
+    var n = parseHaulAmount(o.etv);
+    if (n != null) amount += n;
+  });
+  updateHaulBar(count, 8, amount.toFixed(2));
+}
+
+function loadHaulSummary() {
+  if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
+  return fbGetToken().then(function(token) {
+    return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
+  }).then(function(r) {
+    if (!r.ok) throw new Error('Firebase Haul: HTTP '+r.status);
+    return r.json();
+  }).then(function(data) {
+    var rows = [];
+    if (data) Object.keys(data).forEach(function(k) { if (data[k]) rows.push(data[k]); });
+    updateHaulBarFromOrders(rows);
+    return rows;
+  }).catch(function() { return null; });
+}
+
 
 /* ══════════════════════════════════════════════════════════════
    SSE — Feed
@@ -1021,20 +1082,20 @@ function fbGetToken() {
 
 function loadDrops(more) {
   if (!cfg.fbEmail || !cfg.fbPassword) { showDropsState('not-configured'); return; }
-  if (!more) { _allDrops=[]; _dropsPage=0; _dropsFilter=''; document.getElementById('drops-search').value=''; }
+  _allDrops=[]; _dropsPage=0; _dropsFilter=''; document.getElementById('drops-search').value='';
   showDropsState('loading');
   fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_drops.json?auth='+token);
+    return fetch(FB_DB_URL+'/pcu_log/drops.json?auth='+token);
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
       if (data) Object.keys(data).forEach(function(k){ var e=Object.assign({},data[k]); e._fbKey=k; rows.push(e); });
       rows.sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
-      rows = rows.slice(0, 200);
-      _allDrops = more ? _allDrops.concat(rows) : rows;
+      _allDrops = rows;
       _dropsPage=0; showDropsState('body'); document.getElementById('drop-list').innerHTML=''; renderDropsPage();
+      setBarStatus('drops-status-bar', rows.length ? ('OK Drops caricati da Firebase PCU ('+rows.length+')') : 'Nessun drop nel log Firebase PCU', rows.length ? 'ok' : '');
     })
-    .catch(function(e){ setBarStatus('drops-status-bar','❌ '+(e.message||'Errore'),'err'); showDropsState('body'); });
+    .catch(function(e){ setBarStatus('drops-status-bar','Errore: '+(e.message||'Errore'),'err'); showDropsState('body'); });
 }
 
 function showDropsState(s) {
@@ -1085,6 +1146,7 @@ function loadHaul(force) {
       rows.sort(function(a,b){ var ta=a.confirmedAt||a.updatedAt||a.ts||pd(a.date); var tb=b.confirmedAt||b.updatedAt||b.ts||pd(b.date); return tb-ta; });
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
+      updateHaulBarFromOrders(rows);
       loadPcuStatus();
       setBarStatus('haul-status-bar','OK Haul caricato da Firebase PCU ('+rows.length+' ordini)','ok');
     })
