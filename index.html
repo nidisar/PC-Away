@@ -267,7 +267,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vrefreshcode</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync1</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -283,10 +283,10 @@
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
     <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this)">               <span class="ticon">🎮</span>Bot</button>
-    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud()"><span class="ticon">⏰</span>Sched</button>
-    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud()"> <span class="ticon">🎯</span>Filtri</button>
+    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud(true)"><span class="ticon">⏰</span>Sched</button>
+    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
-    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul()">     <span class="ticon">📦</span>Haul</button>
+    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true)">     <span class="ticon">📦</span>Haul</button>
     <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
     <button id="tab-btn-settings"                 onclick="switchTab('settings',this)">            <span class="ticon">⚙️</span>Info</button>
   </div>
@@ -514,6 +514,7 @@
       </div>
       <div class="settings-section">
         <div class="section-title">Sicurezza</div>
+        <div class="settings-row"><div class="s-label">Richiedi password</div><label class="f-toggle"><input type="checkbox" id="s-require-pwd"><div class="f-toggle-track"></div></label></div>
         <div class="settings-row"><div class="s-label">Nuova Password</div><input class="s-input" type="password" id="s-newpwd" placeholder="Lascia vuoto per non cambiare" autocomplete="new-password"></div>
         <div class="settings-row"><div class="s-label">Conferma Password</div><input class="s-input" type="password" id="s-newpwd2" placeholder="Ripeti la password" autocomplete="new-password"></div>
       </div>
@@ -579,6 +580,7 @@ function refreshStartupData() {
   preloadNtfyHistory();
   loadPcuStatus();
   loadDrops();
+  loadCfgCloud(true);
 }
 
 function configuredTopics() {
@@ -1002,10 +1004,10 @@ function normalizeRemoteConfig(data) {
   base.arScheduleHourly = Object.assign({}, base.arScheduleHourly, data.arScheduleHourly || {});
   base.arScheduleHourly.manual = Object.assign({}, defaultRemoteConfig().arScheduleHourly.manual, (data.arScheduleHourly || {}).manual || {});
   base.blacklist = Object.assign({}, base.blacklist, data.blacklist || {});
-  base.blacklist.list = Array.isArray(base.blacklist.list) ? base.blacklist.list : [];
+  base.blacklist.list = sortTextList(Array.isArray(base.blacklist.list) ? base.blacklist.list : []);
   base.blacklistEtv = Object.assign({}, base.blacklistEtv, data.blacklistEtv || {});
   base.brands = Object.assign({}, base.brands, data.brands || {});
-  base.brands.list = Array.isArray(base.brands.list) ? base.brands.list : [];
+  base.brands.list = sortTextList(Array.isArray(base.brands.list) ? base.brands.list : []);
   base.advancedRules = Object.assign({}, base.advancedRules, data.advancedRules || {});
   base.advancedRules.rules = Array.isArray(base.advancedRules.rules) ? base.advancedRules.rules : [];
   base.advancedRules.rules = base.advancedRules.rules.map(function(rule) {
@@ -1016,6 +1018,7 @@ function normalizeRemoteConfig(data) {
     rule.rejectKeywords = rule.blacklistKeywords.slice();
     return rule;
   });
+  base.advancedRules.rules = sortRules(base.advancedRules.rules);
   if (data.etv) base.etv = data.etv;
   if (data.categoryWhitelist) base.categoryWhitelist = data.categoryWhitelist;
   if (data.categoryBlacklist) base.categoryBlacklist = data.categoryBlacklist;
@@ -1036,6 +1039,19 @@ function filterConfigSubset(data) {
   };
 }
 
+function sortTextList(list) {
+  return (list || []).map(function(v){ return String(v || '').trim().toLowerCase(); }).filter(Boolean)
+    .filter(function(v,i,a){ return a.indexOf(v) === i; })
+    .sort(function(a,b){ return a.localeCompare(b, 'it', { sensitivity:'base' }); });
+}
+function ruleSortKey(rule) {
+  rule = rule || {};
+  return String(rule.name || rule.brand || (rule.positiveKeywords || rule.keywords || []).join(' ') || '').toLowerCase();
+}
+function sortRules(rules) {
+  return (rules || []).slice().sort(function(a,b){ return ruleSortKey(a).localeCompare(ruleSortKey(b), 'it', { sensitivity:'base' }); });
+}
+
 function loadCfgGist(force) { return loadCfgCloud(force); } // legacy alias: i tab ora usano Firebase
 
 function loadCfgCloud(force) {
@@ -1043,9 +1059,18 @@ function loadCfgCloud(force) {
   if (_cfgLoading && !force) return;
   _cfgLoading = true;
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
-  fbDbRead('/pcu_config/current').then(function(data) {
-    if (data) return data;
-    return fbDbRead('/pcu_filters/config').then(function(filters){ return filters || {}; });
+  Promise.all([
+    fbDbRead('/pcu_config/current').catch(function(){ return null; }),
+    fbDbRead('/pcu_filters/config').catch(function(){ return null; })
+  ]).then(function(pair) {
+    var current = pair[0] || {};
+    var filters = pair[1] || {};
+    var data = Object.assign({}, current);
+    if (!current.updatedAt || (filters.updatedAt && filters.updatedAt >= current.updatedAt)) {
+      data = Object.assign(data, filterConfigSubset(filters));
+      data.updatedAt = filters.updatedAt || current.updatedAt || Date.now();
+    }
+    return data;
   }).then(function(data) {
     _fData = normalizeRemoteConfig(data); _fDirty = false; _cfgLoading = false;
     showNs('sched','body'); populateSchedulerForm();
@@ -1226,9 +1251,15 @@ function renderFilters() {
   document.getElementById('f-bletv-max').value         = bletv.maxEtv != null ? bletv.maxEtv : '';
   document.getElementById('f-brands-enabled').checked = !!br.enabled;
   document.getElementById('f-rules-enabled').checked  = ar.enabled !== false;
-  renderTagList('f-bl-list',     bl.list || [],  'bl');
-  renderTagList('f-brands-list', br.list || [], 'brands');
-  renderRulesList(ar.rules || []);
+  bl.list = sortTextList(bl.list || []);
+  br.list = sortTextList(br.list || []);
+  ar.rules = sortRules(ar.rules || []);
+  if (_fData.blacklist) _fData.blacklist.list = bl.list;
+  if (_fData.brands) _fData.brands.list = br.list;
+  if (_fData.advancedRules) _fData.advancedRules.rules = ar.rules;
+  renderTagList('f-bl-list',     bl.list,  'bl');
+  renderTagList('f-brands-list', br.list, 'brands');
+  renderRulesList(ar.rules);
 }
 
 function renderTagList(cid, list, ns) {
@@ -1248,11 +1279,11 @@ function addTag(ns) {
   var input = document.getElementById(ns==='bl' ? 'f-bl-input' : 'f-brands-input');
   var val = (input.value||'').trim().toLowerCase(); if (!val) return;
   var list = _getTagList(ns).slice(); if (list.indexOf(val)!==-1) { input.value=''; return; }
-  list.push(val); _setTagList(ns, list); input.value='';
+  list.push(val); list = sortTextList(list); _setTagList(ns, list); input.value='';
   renderTagList(ns==='bl'?'f-bl-list':'f-brands-list', list, ns); _fDirty=true;
 }
 function removeTag(ns, idx) {
-  var list = _getTagList(ns).slice(); list.splice(idx,1); _setTagList(ns, list);
+  var list = _getTagList(ns).slice(); list.splice(idx,1); list = sortTextList(list); _setTagList(ns, list);
   renderTagList(ns==='bl'?'f-bl-list':'f-brands-list', list, ns); _fDirty=true;
 }
 document.addEventListener('keydown', function(e) {
@@ -1322,7 +1353,7 @@ function addRule() {
 
 function removeRule(idx) {
   if (!_fData||!_fData.advancedRules||!_fData.advancedRules.rules) return;
-  _fData.advancedRules.rules.splice(idx,1); renderRulesList(_fData.advancedRules.rules); _fDirty=true;
+  _fData.advancedRules.rules.splice(idx,1); _fData.advancedRules.rules = sortRules(_fData.advancedRules.rules); renderRulesList(_fData.advancedRules.rules); _fDirty=true;
 }
 
 function collectFilterData() {
@@ -1337,6 +1368,9 @@ function collectFilterData() {
   _fData.brands.enabled       = document.getElementById('f-brands-enabled').checked;
   _fData.advancedRules.enabled = document.getElementById('f-rules-enabled').checked;
   (_fData.advancedRules.rules||[]).forEach(function(_,i){ ruleFieldChanged(i); });
+  _fData.blacklist.list = sortTextList(_fData.blacklist.list || []);
+  _fData.brands.list = sortTextList(_fData.brands.list || []);
+  _fData.advancedRules.rules = sortRules(_fData.advancedRules.rules || []);
 }
 
 function saveFilters() { if (!_fData) return; collectFilterData(); patchGistAndPull(document.getElementById('f-save-btn'),'f-status-bar'); }
@@ -1450,8 +1484,7 @@ function loadHaul(force) {
     .then(function(data) {
       var rows=[];
       if (data) Object.keys(data).forEach(function(k){ if(data[k]) { var e=Object.assign({},data[k]); e._fbKey=k; rows.push(e); } });
-      function pd(s){ var m=(s||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():(new Date(s).getTime()||0); }
-      rows.sort(function(a,b){ var ta=a.confirmedAt||a.updatedAt||a.ts||pd(a.date); var tb=b.confirmedAt||b.updatedAt||b.ts||pd(b.date); return tb-ta; });
+      rows.sort(function(a,b){ return haulOrderTs(b) - haulOrderTs(a); });
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
       loadPcuStatus();
@@ -1466,10 +1499,22 @@ function showHaulState(s) {
   document.getElementById('haul-body').style.display            = s==='body'            ? '' : 'none';
 }
 
+function haulOrderTs(o) {
+  o = o || {};
+  function n(v) { var x = Number(v); if (!isFinite(x) || x <= 0) return 0; return x < 100000000000 ? x * 1000 : x; }
+  function pd(s) {
+    s = String(s || '').trim();
+    var m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+    if (m) return new Date(+m[3], +m[2]-1, +m[1]).getTime() || 0;
+    var t = Date.parse(s); return isFinite(t) ? t : 0;
+  }
+  return n(o.confirmedAt) || n(o.orderedAt) || n(o.updatedAt) || n(o.ts) || pd(o.date) || pd(o.createdAt) || 0;
+}
+
 function filterHaul() { _haulFilter=(document.getElementById('haul-search').value||'').toLowerCase(); _haulPage=0; document.getElementById('haul-list').innerHTML=''; renderHaulPage(); }
 
 function renderHaulPage() {
-  var filtered=_haulOrders.filter(function(o){ return !_haulFilter||(o.title||'').toLowerCase().indexOf(_haulFilter)!==-1||(o.asin||'').toLowerCase().indexOf(_haulFilter)!==-1; });
+  var filtered=_haulOrders.filter(function(o){ return !_haulFilter||(o.title||'').toLowerCase().indexOf(_haulFilter)!==-1||(o.asin||'').toLowerCase().indexOf(_haulFilter)!==-1; }).sort(function(a,b){ return haulOrderTs(b) - haulOrderTs(a); });
   var list=document.getElementById('haul-list'); var start=_haulPage*HAUL_PAGE;
   filtered.slice(start, start+HAUL_PAGE).forEach(function(o) {
     var card=document.createElement('div'); card.className='haul-card';
@@ -1565,6 +1610,7 @@ function loadSettingsToForm() {
   document.getElementById('s-haul-gist-id').value = cfg.haulGistId || '';
   document.getElementById('s-fb-email').value     = cfg.fbEmail    || '';
   document.getElementById('s-fb-pwd').value       = cfg.fbPassword || '';
+  var req = document.getElementById('s-require-pwd'); if (req) req.checked = !!localStorage.getItem(PWD_KEY);
 }
 
 function saveSettings() {
@@ -1582,7 +1628,10 @@ function saveSettings() {
   cfg.fbEmail    = document.getElementById('s-fb-email').value.trim();
   cfg.fbPassword = document.getElementById('s-fb-pwd').value;
   saveCfg();
-  if (newPwd) { localStorage.setItem(PWD_KEY, newPwd); document.getElementById('s-newpwd').value=''; document.getElementById('s-newpwd2').value=''; }
+  var requirePwd = !!(document.getElementById('s-require-pwd') && document.getElementById('s-require-pwd').checked);
+  if (!requirePwd) localStorage.removeItem(PWD_KEY);
+  else if (newPwd) localStorage.setItem(PWD_KEY, newPwd);
+  document.getElementById('s-newpwd').value=''; document.getElementById('s-newpwd2').value='';
   _fData=null; _haulOrders=[]; _allDrops=[]; _fbToken=null; _fbExpiry=0;
   _sseLastId={}; saveSseIds();
   fb.style.color='var(--dpt)'; fb.textContent='✅ Impostazioni salvate';
