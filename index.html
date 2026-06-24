@@ -267,7 +267,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync1</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync2</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -580,7 +580,7 @@ function refreshStartupData() {
   preloadNtfyHistory();
   loadPcuStatus();
   loadDrops();
-  loadCfgCloud(true);
+  // Sched/Filtri vengono caricati quando apri i tab, per evitare apply involontari da snapshot vecchi.
 }
 
 function configuredTopics() {
@@ -1060,15 +1060,24 @@ function loadCfgCloud(force) {
   _cfgLoading = true;
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
   Promise.all([
+    fbDbRead('/pcu_status').catch(function(){ return null; }),
     fbDbRead('/pcu_config/current').catch(function(){ return null; }),
     fbDbRead('/pcu_filters/config').catch(function(){ return null; })
   ]).then(function(pair) {
-    var current = pair[0] || {};
-    var filters = pair[1] || {};
-    var data = Object.assign({}, current);
-    if (!current.updatedAt || (filters.updatedAt && filters.updatedAt >= current.updatedAt)) {
-      data = Object.assign(data, filterConfigSubset(filters));
-      data.updatedAt = filters.updatedAt || current.updatedAt || Date.now();
+    var status = pair[0] || {};
+    var liveCfg = status && isFreshStatus(status) && status.config ? status.config : null;
+    var current = pair[1] || {};
+    var filters = pair[2] || {};
+    var data = Object.assign({}, current, liveCfg || {});
+    if (filters && Object.keys(filters).length) {
+      data.etv = filters.etv || data.etv;
+      data.brands = filters.brands || data.brands;
+      data.blacklist = filters.blacklist || data.blacklist;
+      data.blacklistEtv = filters.blacklistEtv || data.blacklistEtv;
+      data.advancedRules = filters.advancedRules || data.advancedRules;
+      data.categoryWhitelist = filters.categoryWhitelist || data.categoryWhitelist;
+      data.categoryBlacklist = filters.categoryBlacklist || data.categoryBlacklist;
+      data.updatedAt = Math.max(Number(data.updatedAt || 0), Number(filters.updatedAt || 0)) || Date.now();
     }
     return data;
   }).then(function(data) {
@@ -1499,6 +1508,15 @@ function showHaulState(s) {
   document.getElementById('haul-body').style.display            = s==='body'            ? '' : 'none';
 }
 
+function firebaseKeyTs(key) {
+  key = String(key || '');
+  var m = key.match(/(?:^|[_-])(\d{13})(?:$|[_-])/);
+  if (m) return Number(m[1]) || 0;
+  m = key.match(/(?:^|[_-])(\d{10})(?:$|[_-])/);
+  if (m) return (Number(m[1]) || 0) * 1000;
+  return 0;
+}
+
 function haulOrderTs(o) {
   o = o || {};
   function n(v) { var x = Number(v); if (!isFinite(x) || x <= 0) return 0; return x < 100000000000 ? x * 1000 : x; }
@@ -1508,13 +1526,13 @@ function haulOrderTs(o) {
     if (m) return new Date(+m[3], +m[2]-1, +m[1]).getTime() || 0;
     var t = Date.parse(s); return isFinite(t) ? t : 0;
   }
-  return n(o.confirmedAt) || n(o.orderedAt) || n(o.updatedAt) || n(o.ts) || pd(o.date) || pd(o.createdAt) || 0;
+  return n(o.confirmedAt) || n(o.orderedAt) || n(o.updatedAt) || n(o.ts) || pd(o.date) || pd(o.createdAt) || firebaseKeyTs(o._fbKey) || 0;
 }
 
 function filterHaul() { _haulFilter=(document.getElementById('haul-search').value||'').toLowerCase(); _haulPage=0; document.getElementById('haul-list').innerHTML=''; renderHaulPage(); }
 
 function renderHaulPage() {
-  var filtered=_haulOrders.filter(function(o){ return !_haulFilter||(o.title||'').toLowerCase().indexOf(_haulFilter)!==-1||(o.asin||'').toLowerCase().indexOf(_haulFilter)!==-1; }).sort(function(a,b){ return haulOrderTs(b) - haulOrderTs(a); });
+  var filtered=_haulOrders.filter(function(o){ return !_haulFilter||(o.title||'').toLowerCase().indexOf(_haulFilter)!==-1||(o.asin||'').toLowerCase().indexOf(_haulFilter)!==-1; }).sort(function(a,b){ var dt = haulOrderTs(b) - haulOrderTs(a); if (dt) return dt; return String(b._fbKey||b.asin||'').localeCompare(String(a._fbKey||a.asin||'')); });
   var list=document.getElementById('haul-list'); var start=_haulPage*HAUL_PAGE;
   filtered.slice(start, start+HAUL_PAGE).forEach(function(o) {
     var card=document.createElement('div'); card.className='haul-card';
