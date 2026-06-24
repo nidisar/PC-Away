@@ -122,6 +122,8 @@
     .cmd-btn.warn:active    { background: rgba(255,183,77,.08); }
     .cmd-btn.purple:active  { background: rgba(206,147,216,.08); }
     .cmd-btn.state-on  { box-shadow: 0 0 10px currentColor; opacity: 1; }
+    .cmd-btn.state-on.success, .cmd-btn.state-on.danger { animation: cmdPulse 1.2s ease-in-out infinite; }
+    @keyframes cmdPulse { 0%,100% { box-shadow: 0 0 7px currentColor; } 50% { box-shadow: 0 0 18px currentColor; } }
     .cmd-btn.state-off { opacity: 0.35; }
     .cmd-feedback { font-size: 13px; padding: 8px 0 2px; min-height: 22px; text-align: center; }
 
@@ -267,7 +269,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync4</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vbotstatus1</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -638,9 +640,11 @@ function loadPcuStatus() {
   }).then(function(status) {
     if (status && status.haul && isFreshStatus(status)) {
       updateHaulFromStatus(status.haul);
+      applyPcuStatusToBot(status);
       _lastFreshStatusHaulAt = Date.now();
       return status;
     }
+    if (status && isFreshStatus(status)) applyPcuStatusToBot(status);
     loadHaulFromMonitorLog();
     return status;
   }).catch(function() { loadHaulFromMonitorLog(); return null; });
@@ -933,6 +937,36 @@ function sendCmd(cmd) {
     .catch(function(e){ showCmdFeedback('❌ '+e.message,true); });
 }
 
+function setBtnTextByKey(key, text) {
+  var btn = document.querySelector('[data-state-key="'+key+'"]');
+  if (!btn) return;
+  var icon = btn.querySelector('.bicon');
+  var iconHtml = icon ? icon.outerHTML : '';
+  btn.innerHTML = iconHtml + text;
+}
+function applyPcuStatusToBot(status) {
+  if (!status || !isFreshStatus(status)) return;
+  var ar = status.arStates || {};
+  updateBtnStates({
+    'armed': !!status.armed,
+    'ar-rfy': !!ar.RFY,
+    'ar-afa': !!ar.AFA,
+    'ar-ai':  !!ar.AI,
+    'sched-rfy': !!(status.config && status.config.arScheduleCpt && status.config.arScheduleCpt.active),
+    'det-rfy': !!(status.config && status.config.dropCptAr && status.config.dropCptAr.enabled),
+    'det-aadpt': !!(status.config && status.config.arScheduleDptAa && status.config.arScheduleDptAa.dptEnabled !== false && status.config.arScheduleDptAa.aaEnabled !== false),
+    'sched-aadpt': !!(status.config && status.config.arScheduleHourly && status.config.arScheduleHourly.enabled)
+  });
+  setActiveMode(status.hideMode || 'presidio');
+  setBtnTextByKey('armed', status.armed ? 'Avviato' : 'Avvia');
+  var disBtn = document.querySelector("button[onclick=\"sendCmd('disattiva')\"]");
+  if (disBtn) {
+    var icon = disBtn.querySelector('.bicon');
+    disBtn.innerHTML = (icon ? icon.outerHTML : '') + (status.armed ? 'Disattiva' : 'Disattivato');
+    disBtn.classList.toggle('state-on', !status.armed);
+    disBtn.classList.toggle('state-off', !!status.armed);
+  }
+}
 function parseBotStato(msg) {
   var title = msg.title || ''; var body = msg.message || '';
   parseHaulFromText(body);
@@ -1180,7 +1214,13 @@ function refreshCfgFromPcu() {
 }
 function requestPcuHaulPush() {
   if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(false);
-  return fbDbWrite('/pcu_commands', 'POST', { action:'pushHaul', ts: Date.now(), source:'pcu-away' }).then(function(){ return true; }).catch(function(){ return false; });
+  var tasks = [fbDbWrite('/pcu_commands', 'POST', { action:'pushHaul', ts: Date.now(), source:'pcu-away' }).catch(function(){ return null; })];
+  var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
+  if (topic) {
+    var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
+    tasks.push(fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-haul' }).catch(function(){ return null; }));
+  }
+  return Promise.all(tasks).then(function(){ return true; });
 }
 
 function sendApplyConfigCommands(statusBarId) {
