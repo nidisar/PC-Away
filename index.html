@@ -267,7 +267,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync3</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync4</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -286,7 +286,7 @@
     <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);refreshCfgFromPcu()"><span class="ticon">⏰</span>Sched</button>
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);refreshCfgFromPcu()"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
-    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true)">     <span class="ticon">📦</span>Haul</button>
+    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true,true)">     <span class="ticon">📦</span>Haul</button>
     <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
     <button id="tab-btn-settings"                 onclick="switchTab('settings',this)">            <span class="ticon">⚙️</span>Info</button>
   </div>
@@ -1178,6 +1178,11 @@ function refreshCfgFromPcu() {
   requestPcuStatus(true).then(function(){ setTimeout(function(){ loadCfgCloud(true); }, 900); });
   return false;
 }
+function requestPcuHaulPush() {
+  if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(false);
+  return fbDbWrite('/pcu_commands', 'POST', { action:'pushHaul', ts: Date.now(), source:'pcu-away' }).then(function(){ return true; }).catch(function(){ return false; });
+}
+
 function sendApplyConfigCommands(statusBarId) {
   return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' }).then(function() {
     return sendPullFirebaseConfig(statusBarId).catch(function(){ return null; });
@@ -1503,11 +1508,12 @@ function buildDropCard(d) {
 /* PCU Away - Haul archive from Firebase PCU */
 var _haulOrders=[]; var _haulPage=0; var _haulFilter='';
 
-function loadHaul(force) {
+function loadHaul(force, requestFresh) {
   if (!cfg.fbEmail || !cfg.fbPassword) { showHaulState('not-configured'); return; }
   if (_haulOrders.length && !force) { _haulPage=0; showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage(); return; }
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
-  fbGetToken().then(function(token) {
+  var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 1600); }); }) : Promise.resolve();
+  pre.then(function(){ return fbGetToken(); }).then(function(token) {
     return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
@@ -1551,7 +1557,16 @@ function haulOrderTs(o) {
 
 function filterHaul() { _haulFilter=(document.getElementById('haul-search').value||'').toLowerCase(); _haulPage=0; document.getElementById('haul-list').innerHTML=''; renderHaulPage(); }
 
+function haulDisplayDateTs(o) {
+  o = o || {};
+  var s = String(o.date || '').trim();
+  var m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+  if (m) return new Date(+m[3], +m[2]-1, +m[1]).getTime() || 0;
+  var t = Date.parse(s); return isFinite(t) ? t : 0;
+}
 function compareHaulOrders(a,b) {
+  var dd = haulDisplayDateTs(b) - haulDisplayDateTs(a);
+  if (dd) return dd;
   var dt = haulOrderTs(b) - haulOrderTs(a);
   if (dt) return dt;
   return String(b._fbKey||b.asin||'').localeCompare(String(a._fbKey||a.asin||''));
