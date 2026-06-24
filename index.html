@@ -269,7 +269,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vbotstatus2</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vhaulmodal1</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -633,7 +633,7 @@ var _lastFreshStatusHaulAt = 0;
 function loadPcuStatus() {
   if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
   return fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_status.json?auth='+token);
+    return fetch(FB_DB_URL+'/pcu_status.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' });
   }).then(function(r) {
     if (!r.ok) throw new Error('Firebase status: HTTP '+r.status);
     return r.json();
@@ -790,7 +790,7 @@ function startSSE() {
                       addFeedItem(msg, t.key, t.label);
                       /* aggiorna haul bar da qualsiasi canale */
                       parseHaulFromText(msg.message || '');
-                      if (t.key === 'cmd') parseBotStato(msg);
+                      if (t.key === 'cmd') parseHaulFromText(msg.message || '');
                     }
                   } catch(e) {}
                 });
@@ -844,7 +844,7 @@ function preloadNtfyHistory() {
     items.forEach(function(item) {
       addFeedItem(item.msg, item.topic.key, item.topic.label, true);
       parseHaulFromText(item.msg.message || '');
-      if (item.topic.key === 'cmd') { hasCmdState = true; parseBotStato(item.msg); }
+      if (item.topic.key === 'cmd') { hasCmdState = true; parseHaulFromText(item.msg.message || ''); }
     });
     var empty = document.getElementById('feed-empty');
     if (empty && !items.length && !document.querySelector('#feed-list .feed-item')) {
@@ -925,15 +925,11 @@ function labelToMode(s) { s = s || ''; if (s.indexOf('Full Auto') !== -1) return
 function sendCmd(cmd) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) { showCmdFeedback('⚠️ Topic comandi non configurato', true); return; }
-  if (_MODES.indexOf(cmd) !== -1) { setActiveMode(cmd); } // modo hide: evidenziazione esclusiva ottimistica
-  var sk = _cmdStateMap[cmd];
-  if (sk) { var btn = document.querySelector('[data-state-key="'+sk+'"]'); if (btn) { var wasOn = btn.classList.contains('state-on'); btn.classList.toggle('state-on',!wasOn); btn.classList.toggle('state-off',wasOn); } }
-  if (cmd==='ar off') { ['ar-rfy','ar-afa','ar-ai'].forEach(function(k){ var b=document.querySelector('[data-state-key="'+k+'"]'); if(b){b.classList.remove('state-on');b.classList.add('state-off');} }); }
-  if (cmd==='disattiva') { document.querySelectorAll('[data-state-key]').forEach(function(b){b.classList.remove('state-on');b.classList.add('state-off');}); }
-  if (cmd==='avvia') { var ab=document.querySelector('[data-state-key="armed"]'); if(ab){ab.classList.add('state-on');ab.classList.remove('state-off');} }
+  // Stato Bot live-only: nessun toggle ottimistico locale.
+  // Dopo il comando chiediamo a PCU lo stato reale e aggiorniamo i pulsanti da /pcu_status.
   var headers = { 'Content-Type': 'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
   fetch(NTFY_BASE + '/' + topic, { method:'POST', headers:headers, body:cmd })
-    .then(function(r){ if(r.ok) showCmdFeedback('✅ "'+cmd+'" inviato',false); else showCmdFeedback('❌ HTTP '+r.status,true); })
+    .then(function(r){ if(r.ok) { showCmdFeedback('✅ "'+cmd+'" inviato',false); setTimeout(function(){ requestPcuStatus(true).then(function(){ setTimeout(loadPcuStatus, 900); }); }, 500); } else showCmdFeedback('❌ HTTP '+r.status,true); })
     .catch(function(e){ showCmdFeedback('❌ '+e.message,true); });
 }
 
@@ -1554,9 +1550,9 @@ function loadHaul(force, requestFresh) {
   if (!cfg.fbEmail || !cfg.fbPassword) { showHaulState('not-configured'); return; }
   if (_haulOrders.length && !force) { _haulPage=0; showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage(); return; }
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
-  var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 4500); }); }) : Promise.resolve();
+  var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 7000); }); }) : Promise.resolve();
   pre.then(function(){ return fbGetToken(); }).then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
+    return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' });
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
