@@ -122,7 +122,7 @@
     .cmd-btn.warn:active    { background: rgba(255,183,77,.08); }
     .cmd-btn.purple:active  { background: rgba(206,147,216,.08); }
     .cmd-btn.state-on  { box-shadow: 0 0 10px currentColor; opacity: 1; }
-    .cmd-btn.state-on.success, .cmd-btn.state-on.danger { animation: cmdPulse 1.2s ease-in-out infinite; }
+    .cmd-btn[data-state-key].state-on, .cmd-btn.force-pulse { animation: cmdPulse 1.2s ease-in-out infinite; }
     @keyframes cmdPulse { 0%,100% { box-shadow: 0 0 7px currentColor; } 50% { box-shadow: 0 0 18px currentColor; } }
     .cmd-btn.state-off { opacity: 0.35; }
     .cmd-feedback { font-size: 13px; padding: 8px 0 2px; min-height: 22px; text-align: center; }
@@ -269,7 +269,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vbotstatus1</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vbotstatus2</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -947,8 +947,9 @@ function setBtnTextByKey(key, text) {
 function applyPcuStatusToBot(status) {
   if (!status || !isFreshStatus(status)) return;
   var ar = status.arStates || {};
+  var running = !!(status.sniperReady || status.armed);
   updateBtnStates({
-    'armed': !!status.armed,
+    'armed': running,
     'ar-rfy': !!ar.RFY,
     'ar-afa': !!ar.AFA,
     'ar-ai':  !!ar.AI,
@@ -958,13 +959,14 @@ function applyPcuStatusToBot(status) {
     'sched-aadpt': !!(status.config && status.config.arScheduleHourly && status.config.arScheduleHourly.enabled)
   });
   setActiveMode(status.hideMode || 'presidio');
-  setBtnTextByKey('armed', status.armed ? 'Avviato' : 'Avvia');
+  setBtnTextByKey('armed', running ? 'Avviato' : 'Avvia');
   var disBtn = document.querySelector("button[onclick=\"sendCmd('disattiva')\"]");
   if (disBtn) {
     var icon = disBtn.querySelector('.bicon');
-    disBtn.innerHTML = (icon ? icon.outerHTML : '') + (status.armed ? 'Disattiva' : 'Disattivato');
-    disBtn.classList.toggle('state-on', !status.armed);
-    disBtn.classList.toggle('state-off', !!status.armed);
+    disBtn.innerHTML = (icon ? icon.outerHTML : '') + (running ? 'Disattiva' : 'Disattivato');
+    disBtn.classList.toggle('state-on', !running);
+    disBtn.classList.toggle('state-off', running);
+    disBtn.classList.toggle('force-pulse', !running);
   }
 }
 function parseBotStato(msg) {
@@ -1552,7 +1554,7 @@ function loadHaul(force, requestFresh) {
   if (!cfg.fbEmail || !cfg.fbPassword) { showHaulState('not-configured'); return; }
   if (_haulOrders.length && !force) { _haulPage=0; showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage(); return; }
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
-  var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 1600); }); }) : Promise.resolve();
+  var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 4500); }); }) : Promise.resolve();
   pre.then(function(){ return fbGetToken(); }).then(function(token) {
     return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
