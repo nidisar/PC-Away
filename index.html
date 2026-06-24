@@ -267,7 +267,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync2</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vawaysync3</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -283,8 +283,8 @@
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
     <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this)">               <span class="ticon">🎮</span>Bot</button>
-    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud(true)"><span class="ticon">⏰</span>Sched</button>
-    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
+    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);refreshCfgFromPcu()"><span class="ticon">⏰</span>Sched</button>
+    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);refreshCfgFromPcu()"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
     <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true)">     <span class="ticon">📦</span>Haul</button>
     <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
@@ -578,9 +578,9 @@ function initApp() {
 function refreshStartupData() {
   startSSE();
   preloadNtfyHistory();
+  requestPcuStatus(true);
   loadPcuStatus();
   loadDrops();
-  // Sched/Filtri vengono caricati quando apri i tab, per evitare apply involontari da snapshot vecchi.
 }
 
 function configuredTopics() {
@@ -1061,14 +1061,12 @@ function loadCfgCloud(force) {
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
   Promise.all([
     fbDbRead('/pcu_status').catch(function(){ return null; }),
-    fbDbRead('/pcu_config/current').catch(function(){ return null; }),
     fbDbRead('/pcu_filters/config').catch(function(){ return null; })
   ]).then(function(pair) {
     var status = pair[0] || {};
     var liveCfg = status && isFreshStatus(status) && status.config ? status.config : null;
-    var current = pair[1] || {};
-    var filters = pair[2] || {};
-    var data = Object.assign({}, current, liveCfg || {});
+    var filters = pair[1] || {};
+    var data = Object.assign({}, liveCfg || {});
     if (filters && Object.keys(filters).length) {
       data.etv = filters.etv || data.etv;
       data.brands = filters.brands || data.brands;
@@ -1079,10 +1077,16 @@ function loadCfgCloud(force) {
       data.categoryBlacklist = filters.categoryBlacklist || data.categoryBlacklist;
       data.updatedAt = Math.max(Number(data.updatedAt || 0), Number(filters.updatedAt || 0)) || Date.now();
     }
+    data._pcuLiveConfig = !!liveCfg;
     return data;
   }).then(function(data) {
-    _fData = normalizeRemoteConfig(data); _fDirty = false; _cfgLoading = false;
-    showNs('sched','body'); populateSchedulerForm();
+    _fData = normalizeRemoteConfig(data); _fData._pcuLiveConfig = !!data._pcuLiveConfig; _fDirty = false; _cfgLoading = false;
+    if (_fData._pcuLiveConfig) { showNs('sched','body'); populateSchedulerForm(); }
+    else {
+      var el = document.getElementById('sched-not-configured');
+      if (el) el.textContent = '⏳ Stato live PCU non ancora disponibile: riapri Sched fra 1-2 secondi o verifica che PCU sia acceso.';
+      showNs('sched','not-configured');
+    }
     showNs('filters','body'); renderFilters();
   }).catch(function(e) {
     _cfgLoading = false;
@@ -1158,6 +1162,22 @@ function patchFirebaseAndPull(saveBtn, statusBarId) {
   });
 }
 
+function requestPcuStatus(silent) {
+  var tasks = [];
+  if (cfg.fbEmail && cfg.fbPassword) {
+    tasks.push(fbDbWrite('/pcu_commands', 'POST', { action:'pushStatus', ts: Date.now(), source:'pcu-away' }).catch(function(){ return null; }));
+  }
+  var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
+  if (topic) {
+    var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
+    tasks.push(fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-status' }).catch(function(){ return null; }));
+  }
+  return Promise.all(tasks).then(function(){ return true; });
+}
+function refreshCfgFromPcu() {
+  requestPcuStatus(true).then(function(){ setTimeout(function(){ loadCfgCloud(true); }, 900); });
+  return false;
+}
 function sendApplyConfigCommands(statusBarId) {
   return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' }).then(function() {
     return sendPullFirebaseConfig(statusBarId).catch(function(){ return null; });
@@ -1485,7 +1505,7 @@ var _haulOrders=[]; var _haulPage=0; var _haulFilter='';
 
 function loadHaul(force) {
   if (!cfg.fbEmail || !cfg.fbPassword) { showHaulState('not-configured'); return; }
-  if (_haulOrders.length && !force) { showHaulState('body'); renderHaulPage(); return; }
+  if (_haulOrders.length && !force) { _haulPage=0; showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage(); return; }
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
   fbGetToken().then(function(token) {
     return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token);
@@ -1493,7 +1513,7 @@ function loadHaul(force) {
     .then(function(data) {
       var rows=[];
       if (data) Object.keys(data).forEach(function(k){ if(data[k]) { var e=Object.assign({},data[k]); e._fbKey=k; rows.push(e); } });
-      rows.sort(function(a,b){ return haulOrderTs(b) - haulOrderTs(a); });
+      rows.sort(compareHaulOrders);
       _haulOrders=rows; document.getElementById('haul-search').value=''; _haulFilter='';
       showHaulState('body'); document.getElementById('haul-list').innerHTML=''; renderHaulPage();
       loadPcuStatus();
@@ -1526,13 +1546,19 @@ function haulOrderTs(o) {
     if (m) return new Date(+m[3], +m[2]-1, +m[1]).getTime() || 0;
     var t = Date.parse(s); return isFinite(t) ? t : 0;
   }
-  return n(o.confirmedAt) || n(o.orderedAt) || n(o.updatedAt) || n(o.ts) || pd(o.date) || pd(o.createdAt) || firebaseKeyTs(o._fbKey) || 0;
+  return n(o.confirmedAt) || n(o.orderedAt) || n(o.ts) || pd(o.date) || pd(o.createdAt) || n(o.updatedAt) || firebaseKeyTs(o._fbKey) || 0;
 }
 
 function filterHaul() { _haulFilter=(document.getElementById('haul-search').value||'').toLowerCase(); _haulPage=0; document.getElementById('haul-list').innerHTML=''; renderHaulPage(); }
 
+function compareHaulOrders(a,b) {
+  var dt = haulOrderTs(b) - haulOrderTs(a);
+  if (dt) return dt;
+  return String(b._fbKey||b.asin||'').localeCompare(String(a._fbKey||a.asin||''));
+}
+
 function renderHaulPage() {
-  var filtered=_haulOrders.filter(function(o){ return !_haulFilter||(o.title||'').toLowerCase().indexOf(_haulFilter)!==-1||(o.asin||'').toLowerCase().indexOf(_haulFilter)!==-1; }).sort(function(a,b){ var dt = haulOrderTs(b) - haulOrderTs(a); if (dt) return dt; return String(b._fbKey||b.asin||'').localeCompare(String(a._fbKey||a.asin||'')); });
+  var filtered=_haulOrders.filter(function(o){ return !_haulFilter||(o.title||'').toLowerCase().indexOf(_haulFilter)!==-1||(o.asin||'').toLowerCase().indexOf(_haulFilter)!==-1; }).sort(compareHaulOrders);
   var list=document.getElementById('haul-list'); var start=_haulPage*HAUL_PAGE;
   filtered.slice(start, start+HAUL_PAGE).forEach(function(o) {
     var card=document.createElement('div'); card.className='haul-card';
