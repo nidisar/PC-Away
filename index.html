@@ -150,6 +150,21 @@
     .sched-mode-btn input { display: none; }
     .sched-mode-btn:active { background: var(--bg3); }
     #sc-ar-window .f-hint { color: var(--text2); opacity: 1; font-size: 11px; }
+    .daily-plan-box { border: 1px solid var(--border); border-radius: 10px; background: var(--bg2); padding: 10px; margin-top: 8px; }
+    .daily-plan-actions { display: flex; gap: 7px; flex-wrap: wrap; margin: 8px 0; }
+    .daily-plan-actions button, .daily-event-del { border: 1px solid var(--border); background: var(--bg3); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
+    .daily-plan-actions button:active, .daily-event-del:active { filter: brightness(.9); }
+    .daily-add-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 8px; }
+    .daily-add-row.pb { grid-template-columns: 1fr auto; }
+    .daily-event-list { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+    .daily-event { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 8px; }
+    .daily-badge { font-size: 10px; font-weight: 800; border-radius: 999px; padding: 3px 7px; text-transform: uppercase; }
+    .daily-badge.pb { color: #ff7070; background: rgba(255,80,80,.12); border: 1px solid rgba(255,80,80,.28); }
+    .daily-badge.ar { color: #8ee08e; background: rgba(76,175,80,.12); border: 1px solid rgba(76,175,80,.28); }
+    .daily-time { color: var(--text); font-size: 12px; font-weight: 700; }
+    .daily-preset-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; margin-top: 7px; }
+    .daily-preset-row span { color: var(--text2); font-size: 12px; font-weight: 700; }
+    .daily-preset-row button { padding: 6px 8px; font-size: 11px; }
     .f-save-btn { width: 100%; padding: 14px; border-radius: 10px; background: var(--green); color: #fff; font-size: 15px; font-weight: 700; border: none; cursor: pointer; margin-bottom: 8px; }
     .f-save-btn:active { filter: brightness(.9); }
     .f-save-btn:disabled { opacity: .5; cursor: default; }
@@ -398,6 +413,34 @@
             <div class="f-field"><label>Jitter (sec)</label><input type="number" id="sc-h-jitter" min="0" max="300" step="5" value="90"><div class="f-hint">Variazione casuale</div></div>
           </div>
           <div class="f-field"><label>Pausa se nessun drop (min)</label><input type="number" id="sc-h-nodrop" min="0" max="120" step="5" value="5"></div>
+        </div>
+        <div class="f-section">
+          <div class="f-section-header">
+            <div class="section-title">?? Planner Giornaliero CPT</div>
+            <label class="f-toggle"><input type="checkbox" id="sc-daily-enabled" onchange="renderDailyPlannerAway()"><div class="f-toggle-track"></div></label>
+          </div>
+          <div class="f-hint">Point Blank e finestre AR RFY/CPT. Se abilitato prende priorit? sullo scheduler orario classico.</div>
+          <div class="daily-plan-box">
+            <div class="daily-plan-actions">
+              <button type="button" onclick="dailyAwayPresetHourlyPb()">PB ogni ora :00</button>
+              <button type="button" onclick="dailyAwayPresetArAroundPb()">AR attorno ai PB</button>
+              <button type="button" onclick="dailyAwayClear()">Pulisci</button>
+            </div>
+            <div class="daily-add-row pb">
+              <div class="f-field"><label>Point Blank</label><input type="time" id="sc-daily-pb-at" value="00:00:00" step="1"></div>
+              <button class="f-reload-btn" type="button" onclick="dailyAwayAddPb()">+ PB</button>
+            </div>
+            <div class="daily-add-row">
+              <div class="f-field"><label>AR da</label><input type="time" id="sc-daily-ar-from" value="00:58:00" step="1"></div>
+              <div class="f-field"><label>AR a</label><input type="time" id="sc-daily-ar-to" value="01:03:00" step="1"></div>
+              <button class="f-reload-btn" type="button" onclick="dailyAwayAddAr()">+ AR</button>
+            </div>
+            <div class="daily-event-list" id="sc-daily-events"></div>
+            <div class="f-hint" id="sc-daily-preset-status"></div>
+            <div class="daily-preset-row"><span id="sc-daily-preset-label-1">Preset 1</span><button onclick="dailyAwaySavePreset(1)">Salva</button><button onclick="dailyAwayLoadPreset(1)">Carica</button><button onclick="dailyAwayDeletePreset(1)">Cancella</button></div>
+            <div class="daily-preset-row"><span id="sc-daily-preset-label-2">Preset 2</span><button onclick="dailyAwaySavePreset(2)">Salva</button><button onclick="dailyAwayLoadPreset(2)">Carica</button><button onclick="dailyAwayDeletePreset(2)">Cancella</button></div>
+            <div class="daily-preset-row"><span id="sc-daily-preset-label-3">Preset 3</span><button onclick="dailyAwaySavePreset(3)">Salva</button><button onclick="dailyAwayLoadPreset(3)">Carica</button><button onclick="dailyAwayDeletePreset(3)">Cancella</button></div>
+          </div>
         </div>
         <div class="f-section">
           <div class="f-section-header">
@@ -1021,6 +1064,7 @@ function ghHeaders() { return { 'Authorization':'Bearer '+cfg.ghToken.trim(), 'C
 function defaultRemoteConfig() {
   return {
     arScheduleCpt: { active:false, enabled:true, startTime:'01:00', repeatHours:8, preMinutes:2, postMinutes:10, repeatMin:60, actionMode:'ar_only', pointBlankAr:false, autorefreshEnabled:true },
+    dailyCptPlan: { enabled:false, events:[] },
     arScheduleHourly: { enabled:false, preMinutes:3, jitterSec:90, noDropOffMin:5, manual:{ enabled:false, minute:null, durationMin:5 } },
     blacklist: { enabled:false, list:[] },
     blacklistEtv: { enabled:false, maxEtv:0 },
@@ -1033,6 +1077,7 @@ function normalizeRemoteConfig(data) {
   var base = defaultRemoteConfig();
   data = data && typeof data === 'object' ? data : {};
   base.arScheduleCpt = Object.assign({}, base.arScheduleCpt, data.arScheduleCpt || {});
+  base.dailyCptPlan = normalizeDailyAwayPlan(data.dailyCptPlan || base.dailyCptPlan);
   base.arScheduleHourly = Object.assign({}, base.arScheduleHourly, data.arScheduleHourly || {});
   base.arScheduleHourly.manual = Object.assign({}, defaultRemoteConfig().arScheduleHourly.manual, (data.arScheduleHourly || {}).manual || {});
   base.blacklist = Object.assign({}, base.blacklist, data.blacklist || {});
@@ -1093,12 +1138,14 @@ function loadCfgCloud(force) {
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
   Promise.all([
     fbDbRead('/pcu_status').catch(function(){ return null; }),
+    fbDbRead('/pcu_config/current').catch(function(){ return null; }),
     fbDbRead('/pcu_filters/config').catch(function(){ return null; })
   ]).then(function(pair) {
     var status = pair[0] || {};
+    var remoteCfg = pair[1] || {};
     var liveCfg = status && isFreshStatus(status) && status.config ? status.config : null;
-    var filters = pair[1] || {};
-    var data = Object.assign({}, liveCfg || {});
+    var filters = pair[2] || {};
+    var data = Object.assign({}, remoteCfg || {}, liveCfg || {});
     if (filters && Object.keys(filters).length) {
       data.etv = filters.etv || data.etv;
       data.brands = filters.brands || data.brands;
@@ -1261,6 +1308,65 @@ function updateCptAwayFieldState() {
   var win = document.getElementById('sc-ar-window'); if (win) win.style.opacity = '1';
 }
 
+
+function dailyAwayPad2(n) { return String(n).padStart(2, '0'); }
+function dailyAwayTimeToMin(value) {
+  var m = String(value || '').match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  return Math.max(0, Math.min(23, parseInt(m[1],10))) * 60 + Math.max(0, Math.min(59, parseInt(m[2],10))) + Math.max(0, Math.min(59, parseInt(m[3] || '0',10))) / 60;
+}
+function dailyAwayMinToTime(min) {
+  var totalSec = Math.round((((Number(min) || 0) * 60) % 86400 + 86400) % 86400);
+  return dailyAwayPad2(Math.floor(totalSec / 3600)) + ':' + dailyAwayPad2(Math.floor((totalSec % 3600) / 60)) + ':' + dailyAwayPad2(totalSec % 60);
+}
+function normalizeDailyAwayPlan(plan) {
+  var p = Object.assign({ enabled:false, events:[] }, plan || {});
+  p.events = (Array.isArray(p.events) ? p.events : []).map(function(ev, idx) {
+    if (!ev || (ev.type !== 'point_blank' && ev.type !== 'ar_window')) return null;
+    if (ev.type === 'point_blank') {
+      var at = dailyAwayTimeToMin(ev.at || ev.time); if (at == null) return null;
+      return { id: ev.id || ('pb_' + at + '_' + idx), type:'point_blank', at: dailyAwayMinToTime(at), queue:'RFY', randomize: ev.randomize === true, randomBeforeSec: ev.randomize === true ? 120 : 0, randomAfterSec: ev.randomize === true ? 120 : 0 };
+    }
+    var from = dailyAwayTimeToMin(ev.from), to = dailyAwayTimeToMin(ev.to); if (from == null || to == null || from === to) return null;
+    return { id: ev.id || ('ar_' + from + '_' + to + '_' + idx), type:'ar_window', from: dailyAwayMinToTime(from), to: dailyAwayMinToTime(to), queue:'RFY' };
+  }).filter(Boolean).sort(function(a,b){
+    var am = a.type === 'point_blank' ? dailyAwayTimeToMin(a.at) : dailyAwayTimeToMin(a.from);
+    var bm = b.type === 'point_blank' ? dailyAwayTimeToMin(b.at) : dailyAwayTimeToMin(b.from);
+    return am - bm;
+  });
+  return p;
+}
+function readDailyAwayPlan() {
+  var p = normalizeDailyAwayPlan(_fData && _fData.dailyCptPlan || {});
+  var en = document.getElementById('sc-daily-enabled');
+  p.enabled = !!(en && en.checked);
+  return p;
+}
+function renderDailyPlannerAway() {
+  if (!_fData) return;
+  _fData.dailyCptPlan = normalizeDailyAwayPlan(_fData.dailyCptPlan || {});
+  var en = document.getElementById('sc-daily-enabled'); if (en) en.checked = !!_fData.dailyCptPlan.enabled;
+  var list = document.getElementById('sc-daily-events'); if (!list) return;
+  list.innerHTML = '';
+  if (!_fData.dailyCptPlan.events.length) { list.innerHTML = '<div class="f-hint">Nessun evento nel planner giornaliero.</div>'; return; }
+  _fData.dailyCptPlan.events.forEach(function(ev, idx) {
+    var row = document.createElement('div'); row.className = 'daily-event';
+    row.innerHTML = '<span class="daily-badge '+(ev.type === 'point_blank' ? 'pb' : 'ar')+'">'+(ev.type === 'point_blank' ? 'PB' : 'AR')+'</span>' + '<span class="daily-time">'+(ev.type === 'point_blank' ? ev.at : ev.from + ' ? ' + ev.to)+'</span>' + '<button class="daily-event-del" type="button">?</button>';
+    row.querySelector('button').onclick = function(){ _fData.dailyCptPlan.events.splice(idx,1); renderDailyPlannerAway(); };
+    list.appendChild(row);
+  });
+}
+function dailyAwayAddPb() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'pb_'+Date.now(), type:'point_blank', at: document.getElementById('sc-daily-pb-at').value || '00:00:00', queue:'RFY' }); renderDailyPlannerAway(); }
+function dailyAwayAddAr() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'ar_'+Date.now(), type:'ar_window', from: document.getElementById('sc-daily-ar-from').value || '00:58:00', to: document.getElementById('sc-daily-ar-to').value || '01:03:00', queue:'RFY' }); renderDailyPlannerAway(); }
+function dailyAwayClear() { if (_fData) { _fData.dailyCptPlan = { enabled: !!(document.getElementById('sc-daily-enabled') && document.getElementById('sc-daily-enabled').checked), events:[] }; renderDailyPlannerAway(); } }
+function dailyAwayPresetHourlyPb() { if (!_fData) return; var events=[]; for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); _fData.dailyCptPlan = { enabled: !!(document.getElementById('sc-daily-enabled') && document.getElementById('sc-daily-enabled').checked), events:events }; renderDailyPlannerAway(); }
+function dailyAwayPresetArAroundPb() { if (!_fData) return; var p = normalizeDailyAwayPlan(_fData.dailyCptPlan || {}); var events = p.events.filter(function(ev){ return ev.type === 'point_blank'; }).slice(); if (!events.length) { for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); } var pre = parseInt(document.getElementById('sc-pre').value) || 2, post = parseInt(document.getElementById('sc-post').value) || 10; events.filter(function(ev){ return ev.type === 'point_blank'; }).forEach(function(ev, idx){ var at = dailyAwayTimeToMin(ev.at); events.push({ id:'ar_pb_'+idx, type:'ar_window', from:dailyAwayMinToTime(at-pre), to:dailyAwayMinToTime(at+post), queue:'RFY' }); }); _fData.dailyCptPlan = { enabled:p.enabled, events:events }; renderDailyPlannerAway(); }
+function dailyAwayPresetStatus(msg, ok) { var el = document.getElementById('sc-daily-preset-status'); if (el) { el.textContent = msg || ''; el.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--accent)' : 'var(--text2)'; } }
+function refreshDailyAwayPresets() { fbDbRead('/pcu_config/dailyPlannerPresets').then(function(rows){ rows = rows || {}; [1,2,3].forEach(function(slot){ var el = document.getElementById('sc-daily-preset-label-'+slot), row = rows['slot'+slot]; if (el) el.textContent = row && row.name ? row.name : 'Preset '+slot; }); }).catch(function(){}); }
+function dailyAwaySavePreset(slot) { var name = prompt('Nome preset '+slot+':', 'Preset '+slot); if (name === null) return; var payload = { name: (name.trim() || ('Preset '+slot)).slice(0,60), plan: readDailyAwayPlan(), updatedAt: Date.now(), schema:'pcu_daily_planner_preset_v1' }; dailyAwayPresetStatus('Salvo preset '+slot+'...', null); fbDbWrite('/pcu_config/dailyPlannerPresets/slot'+slot, 'PUT', payload).then(function(){ dailyAwayPresetStatus('Preset '+slot+' salvato', true); refreshDailyAwayPresets(); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
+function dailyAwayLoadPreset(slot) { dailyAwayPresetStatus('Carico preset '+slot+'...', null); fbDbRead('/pcu_config/dailyPlannerPresets/slot'+slot).then(function(row){ if (!row || !row.plan) throw new Error('Preset vuoto'); _fData.dailyCptPlan = normalizeDailyAwayPlan(row.plan); renderDailyPlannerAway(); dailyAwayPresetStatus('Preset '+slot+' caricato. Premi Salva e applica a PCU.', true); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
+function dailyAwayDeletePreset(slot) { if (!confirm('Cancellare il preset '+slot+' da Firebase?')) return; fbDbRequest('/pcu_config/dailyPlannerPresets/slot'+slot, { method:'DELETE' }).then(function(){ dailyAwayPresetStatus('Preset '+slot+' cancellato', true); refreshDailyAwayPresets(); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
+
 function populateSchedulerForm() {
   if (!_fData) return;
   var cpt = _fData.arScheduleCpt    || {};
@@ -1282,6 +1388,8 @@ function populateSchedulerForm() {
   var manualState = document.getElementById('sc-m-state'); if (manualState) manualState.textContent = man.enabled ? 'Attivo - gestione nel tab Bot' : 'Disattivo - gestione nel tab Bot';
   document.getElementById('sc-m-min').value       = man.minute       != null ? man.minute       : '';
   document.getElementById('sc-m-dur').value       = man.durationMin  != null ? man.durationMin  : 5;
+  renderDailyPlannerAway();
+  refreshDailyAwayPresets();
 }
 
 function saveScheduler() {
@@ -1306,6 +1414,7 @@ function saveScheduler() {
   var minVal = document.getElementById('sc-m-min').value;
   _fData.arScheduleHourly.manual.minute      = minVal !== '' ? parseInt(minVal) : null;
   _fData.arScheduleHourly.manual.durationMin = parseInt(document.getElementById('sc-m-dur').value) || 5;
+  _fData.dailyCptPlan = readDailyAwayPlan();
   patchGistAndPull(document.getElementById('sched-save-btn'), 'sched-status-bar');
 }
 
