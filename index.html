@@ -354,12 +354,15 @@
         </div>
       </div>
       <div class="cmd-section">
-        <div class="section-title">Toggle Scheduler / Rilevazione</div>
+        <div class="section-title">Scheduler / Rilevazione</div>
         <div class="cmd-grid">
-          <button class="cmd-btn info"    onclick="sendCmd('sched rfy')"   data-state-key="sched-rfy">  <span class="bicon">🕐</span>Scheduler RFY</button>
-          <button class="cmd-btn info"    onclick="sendCmd('det rfy')"     data-state-key="det-rfy">    <span class="bicon">📡</span>AR RFY da AI/AFA</button>
-          <button class="cmd-btn success" onclick="sendCmd('det aadpt')"   data-state-key="det-aadpt">  <span class="bicon">📡</span>Detect AI/AFA</button>
-          <button class="cmd-btn success" onclick="sendCmd('sched aadpt')" data-state-key="sched-aadpt"><span class="bicon">🕑</span>Scheduler AI/AFA</button>
+          <div class="cmd-grid cmd-grid-3" style="grid-column:1/-1">
+            <button class="cmd-btn info"    onclick="sendCmd('sched rfy')" data-state-key="sched-rfy"><span class="bicon">&#128336;</span>Sched Orario RFY</button>
+            <button class="cmd-btn purple"  onclick="sendCmd('daily rfy')" data-state-key="daily-rfy"><span class="bicon">&#128197;</span>Pianificazione RFY</button>
+            <button class="cmd-btn info"    onclick="sendCmd('det rfy')"   data-state-key="det-rfy"><span class="bicon">&#128225;</span>AR RFY da AI/AFA</button>
+          </div>
+          <button class="cmd-btn success" onclick="sendCmd('det aadpt')"   data-state-key="det-aadpt"><span class="bicon">&#128225;</span>Detect AI/AFA</button>
+          <button class="cmd-btn success" onclick="sendCmd('sched aadpt')" data-state-key="sched-aadpt"><span class="bicon">&#128337;</span>Scheduler AI/AFA</button>
         </div>
       </div>
       <div class="cmd-section">
@@ -416,8 +419,8 @@
         </div>
         <div class="f-section">
           <div class="f-section-header">
-            <div class="section-title">?? Planner Giornaliero CPT</div>
-            <label class="f-toggle"><input type="checkbox" id="sc-daily-enabled" onchange="renderDailyPlannerAway()"><div class="f-toggle-track"></div></label>
+            <div class="section-title">&#128197; Planner Giornaliero CPT</div>
+            <span class="f-hint" id="sc-daily-state">Stato gestito dal tab Bot</span>
           </div>
           <div class="f-hint">Point Blank e finestre AR RFY/CPT. Se abilitato prende priorit? sullo scheduler orario classico.</div>
           <div class="daily-plan-box">
@@ -943,7 +946,7 @@ function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').re
 /* ══════════════════════════════════════════════════════════════
    COMMANDS
    ══════════════════════════════════════════════════════════════ */
-var _cmdStateMap = { 'ar rfy':'ar-rfy','ar afa':'ar-afa','ar ai':'ar-ai','sched rfy':'sched-rfy','sched aadpt':'sched-aadpt','det rfy':'det-rfy','det aadpt':'det-aadpt' };
+var _cmdStateMap = { 'ar rfy':'ar-rfy','ar afa':'ar-afa','ar ai':'ar-ai','sched rfy':'sched-rfy','daily rfy':'daily-rfy','planner rfy':'daily-rfy','sched aadpt':'sched-aadpt','det rfy':'det-rfy','det aadpt':'det-aadpt' };
 var _MODES = ['fullauto','presidio','remoto'];
 function initializeCommandStates() {
   document.querySelectorAll('[data-state-key]').forEach(function(btn) {
@@ -993,6 +996,7 @@ function applyPcuStatusToBot(status) {
     'ar-afa': !!ar.AFA,
     'ar-ai':  !!ar.AI,
     'sched-rfy': !!(status.config && status.config.arScheduleCpt && status.config.arScheduleCpt.active),
+    'daily-rfy': !!(status.config && status.config.dailyCptPlan && status.config.dailyCptPlan.enabled),
     'det-rfy': !!(status.config && status.config.dropCptAr && status.config.dropCptAr.enabled),
     'det-aadpt': !!(status.config && status.config.arScheduleDptAa && status.config.arScheduleDptAa.dptEnabled !== false && status.config.arScheduleDptAa.aaEnabled !== false),
     'sched-aadpt': !!(status.config && status.config.arScheduleHourly && status.config.arScheduleHourly.enabled)
@@ -1016,6 +1020,7 @@ function parseBotStato(msg) {
     updateBtnStates({
       'armed':       on('Cecchino attivo:'),
       'sched-rfy':   on('Sched RFY:'),
+      'daily-rfy':   on('Pianificazione RFY:'),
       'det-rfy':     on('Det RFY:'),
       'det-aadpt':   body.indexOf('DPT ✅') !== -1 && body.indexOf('AA ✅') !== -1,
       'sched-aadpt': on('Sched AA/DPT:')
@@ -1028,6 +1033,7 @@ function parseBotStato(msg) {
   var isOn = body.indexOf('✅') !== -1;
   var u = {};
   if (title.indexOf('Sched RFY')    !== -1) u['sched-rfy']   = isOn;
+  if (title.indexOf('Pianificazione RFY') !== -1 || title.indexOf('Planner giornaliero RFY') !== -1) u['daily-rfy'] = isOn;
   if (title.indexOf('Det RFY')      !== -1) u['det-rfy']     = isOn;
   if (title.indexOf('Det AA/DPT')   !== -1) { u['det-aadpt'] = isOn; }
   if (title.indexOf('Sched AA/DPT') !== -1) u['sched-aadpt'] = isOn;
@@ -1036,7 +1042,7 @@ function parseBotStato(msg) {
   if (title.indexOf('AR AI')        !== -1) u['ar-ai']       = isOn;
   if (title.indexOf('AR OFF')       !== -1) { u['ar-rfy']=false; u['ar-afa']=false; u['ar-ai']=false; }
   if (title.indexOf('Avvio')        !== -1) u['armed'] = true;
-  if (title.indexOf('Disattivato')  !== -1) { ['armed','fullauto','ar-rfy','ar-afa','ar-ai','sched-rfy','sched-aadpt','det-rfy','det-aadpt'].forEach(function(k){u[k]=false;}); }
+  if (title.indexOf('Disattivato')  !== -1) { ['armed','fullauto','ar-rfy','ar-afa','ar-ai','sched-rfy','daily-rfy','sched-aadpt','det-rfy','det-aadpt'].forEach(function(k){u[k]=false;}); }
   if (Object.keys(u).length) updateBtnStates(u);
 }
 
@@ -1339,13 +1345,14 @@ function normalizeDailyAwayPlan(plan) {
 function readDailyAwayPlan() {
   var p = normalizeDailyAwayPlan(_fData && _fData.dailyCptPlan || {});
   var en = document.getElementById('sc-daily-enabled');
-  p.enabled = !!(en && en.checked);
+  p.enabled = en ? !!en.checked : !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled);
   return p;
 }
 function renderDailyPlannerAway() {
   if (!_fData) return;
   _fData.dailyCptPlan = normalizeDailyAwayPlan(_fData.dailyCptPlan || {});
   var en = document.getElementById('sc-daily-enabled'); if (en) en.checked = !!_fData.dailyCptPlan.enabled;
+  var st = document.getElementById('sc-daily-state'); if (st) st.textContent = _fData.dailyCptPlan.enabled ? 'Attiva - gestione nel tab Bot' : 'Disattiva - gestione nel tab Bot';
   var list = document.getElementById('sc-daily-events'); if (!list) return;
   list.innerHTML = '';
   if (!_fData.dailyCptPlan.events.length) { list.innerHTML = '<div class="f-hint">Nessun evento nel planner giornaliero.</div>'; return; }
@@ -1358,8 +1365,8 @@ function renderDailyPlannerAway() {
 }
 function dailyAwayAddPb() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'pb_'+Date.now(), type:'point_blank', at: document.getElementById('sc-daily-pb-at').value || '00:00:00', queue:'RFY' }); renderDailyPlannerAway(); }
 function dailyAwayAddAr() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'ar_'+Date.now(), type:'ar_window', from: document.getElementById('sc-daily-ar-from').value || '00:58:00', to: document.getElementById('sc-daily-ar-to').value || '01:03:00', queue:'RFY' }); renderDailyPlannerAway(); }
-function dailyAwayClear() { if (_fData) { _fData.dailyCptPlan = { enabled: !!(document.getElementById('sc-daily-enabled') && document.getElementById('sc-daily-enabled').checked), events:[] }; renderDailyPlannerAway(); } }
-function dailyAwayPresetHourlyPb() { if (!_fData) return; var events=[]; for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); _fData.dailyCptPlan = { enabled: !!(document.getElementById('sc-daily-enabled') && document.getElementById('sc-daily-enabled').checked), events:events }; renderDailyPlannerAway(); }
+function dailyAwayClear() { if (_fData) { _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:[] }; renderDailyPlannerAway(); } }
+function dailyAwayPresetHourlyPb() { if (!_fData) return; var events=[]; for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:events }; renderDailyPlannerAway(); }
 function dailyAwayPresetArAroundPb() { if (!_fData) return; var p = normalizeDailyAwayPlan(_fData.dailyCptPlan || {}); var events = p.events.filter(function(ev){ return ev.type === 'point_blank'; }).slice(); if (!events.length) { for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); } var pre = parseInt(document.getElementById('sc-pre').value) || 2, post = parseInt(document.getElementById('sc-post').value) || 10; events.filter(function(ev){ return ev.type === 'point_blank'; }).forEach(function(ev, idx){ var at = dailyAwayTimeToMin(ev.at); events.push({ id:'ar_pb_'+idx, type:'ar_window', from:dailyAwayMinToTime(at-pre), to:dailyAwayMinToTime(at+post), queue:'RFY' }); }); _fData.dailyCptPlan = { enabled:p.enabled, events:events }; renderDailyPlannerAway(); }
 function dailyAwayPresetStatus(msg, ok) { var el = document.getElementById('sc-daily-preset-status'); if (el) { el.textContent = msg || ''; el.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--accent)' : 'var(--text2)'; } }
 function refreshDailyAwayPresets() { fbDbRead('/pcu_config/dailyPlannerPresets').then(function(rows){ rows = rows || {}; [1,2,3].forEach(function(slot){ var el = document.getElementById('sc-daily-preset-label-'+slot), row = rows['slot'+slot]; if (el) el.textContent = row && row.name ? row.name : 'Preset '+slot; }); }).catch(function(){}); }
@@ -1381,6 +1388,7 @@ function populateSchedulerForm() {
   document.getElementById('sc-post').value        = cpt.postMinutes  != null ? cpt.postMinutes  : 10;
   setCptAwayActionMode(cpt.actionMode || (cpt.pointBlankAr ? 'ar_pb' : 'ar_only'));
   updateCptAwayFieldState();
+  var dailyState = document.getElementById('sc-daily-state'); if (dailyState) dailyState.textContent = (_fData.dailyCptPlan && _fData.dailyCptPlan.enabled) ? 'Attiva - gestione nel tab Bot' : 'Disattiva - gestione nel tab Bot';
   var hourlyState = document.getElementById('sc-hourly-state'); if (hourlyState) hourlyState.textContent = hou.enabled ? 'Attivo - gestione nel tab Bot' : 'Disattivo - gestione nel tab Bot';
   document.getElementById('sc-h-pre').value       = hou.preMinutes   != null ? hou.preMinutes   : 3;
   document.getElementById('sc-h-jitter').value    = hou.jitterSec    != null ? hou.jitterSec    : 90;
