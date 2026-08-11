@@ -167,6 +167,50 @@
     .daily-preset-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; margin-top: 7px; }
     .daily-preset-row span { color: var(--text2); font-size: 12px; font-weight: 700; }
     .daily-preset-row button { padding: 6px 8px; font-size: 11px; }
+    .plan-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:10px 0; }
+    .plan-toolbar button { border:1px solid var(--border); background:var(--bg2); color:var(--text); border-radius:8px; padding:8px 11px; font-weight:700; }
+    .plan-zoom-label { min-width:46px; text-align:center; color:var(--cpt); font-size:12px; font-weight:800; }
+    .plan-toolbar-hint { flex:1; min-width:170px; color:var(--text2); font-size:10px; line-height:1.35; }
+    .plan-v-shell { border:1px solid var(--border); border-radius:11px; overflow:hidden; background:var(--bg2); }
+    .plan-v-head { display:grid; grid-template-columns:50px repeat(4,minmax(0,1fr)); position:sticky; top:0; z-index:15; background:#141b24; border-bottom:1px solid var(--border); }
+    .plan-v-head span { padding:8px 2px; text-align:center; font-size:9px; font-weight:800; text-transform:uppercase; white-space:nowrap; overflow:hidden; }
+    .plan-v-head .time { color:var(--text2); }
+    .plan-v-head .pb { color:#ff7070; }.plan-v-head .as { color:#ffbd59; }.plan-v-head .bs { color:#62c9ff; }.plan-v-head .ar { color:#8ee08e; }
+    .plan-v-scroll { height:min(62vh,620px); min-height:420px; overflow-y:auto; overscroll-behavior:contain; scrollbar-color:var(--cpt) var(--bg3); }
+    .plan-v-canvas { position:relative; min-width:310px; background:rgba(255,255,255,.012); }
+    .plan-v-time-gutter { position:absolute; inset:0 auto 0 0; width:50px; z-index:4; background:rgba(8,12,18,.5); }
+    .plan-v-hour { position:absolute; left:0; right:0; height:1px; background:rgba(255,255,255,.10); pointer-events:none; }
+    .plan-v-hour.half { background:rgba(255,255,255,.035); }
+    .plan-v-hour-label { position:absolute; left:4px; transform:translateY(-50%); color:var(--text2); font:700 9px ui-monospace,monospace; z-index:5; pointer-events:none; }
+    .plan-v-lanes { position:absolute; inset:0 0 0 50px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); touch-action:none; }
+    .plan-v-lane { position:relative; border-left:1px solid rgba(255,255,255,.06); cursor:crosshair; }
+    .plan-v-lane.pb { background:rgba(255,80,80,.025); }.plan-v-lane.as { background:rgba(255,183,77,.028); }.plan-v-lane.bs { background:rgba(71,190,255,.025); }.plan-v-lane.ar { background:rgba(76,175,80,.025); }
+    .plan-v-event { position:absolute; left:12%; right:12%; z-index:7; user-select:none; touch-action:none; }
+    .plan-v-event.pb { left:50%; right:auto; width:16px; height:16px; margin-left:-8px; margin-top:-8px; border-radius:50%; background:#ff4545; border:2px solid #fff; box-shadow:0 0 10px rgba(255,69,69,.7); }
+    .plan-v-event.pb.randomized { background:#ff8a2b; }
+    .plan-v-event.as { left:50%; right:auto; width:20px; height:20px; margin-left:-10px; margin-top:-10px; border-radius:6px; transform:rotate(45deg); background:#ffb74d; border:2px solid rgba(255,255,255,.8); box-shadow:0 0 10px rgba(255,183,77,.65); }
+    .plan-v-event.bs,.plan-v-event.ar { min-height:6px; border-radius:7px; }
+    .plan-v-event.bs { background:linear-gradient(#47beff,#4dd0e1); box-shadow:0 0 8px rgba(71,190,255,.38); }
+    .plan-v-event.ar { background:linear-gradient(#4caf50,#81c784); box-shadow:0 0 8px rgba(76,175,80,.38); }
+    .plan-v-event.selected { outline:2px solid #fff; outline-offset:2px; filter:brightness(1.15); z-index:9; }
+    .plan-v-handle { position:absolute; left:-3px; right:-3px; height:12px; border-radius:6px; background:#fff; border:1px solid #111; display:none; }
+    .plan-v-handle.start { top:-5px; cursor:ns-resize; }.plan-v-handle.end { bottom:-5px; cursor:ns-resize; }
+    .plan-v-event.selected .plan-v-handle { display:block; }
+    .plan-v-guide { position:absolute; left:0; right:0; height:1px; background:rgba(255,255,255,.85); box-shadow:0 0 7px #fff; z-index:12; pointer-events:none; display:none; }
+    .plan-v-guide span { position:absolute; left:3px; top:-10px; padding:2px 4px; border-radius:4px; background:#080c12; color:#fff; font:800 9px ui-monospace,monospace; }
+    .plan-selected { display:none; margin-top:10px; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg2); }
+    .plan-selected.visible { display:block; }
+    .plan-selected-title { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:9px; font-size:12px; font-weight:800; }
+    .plan-selected-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .plan-selected-grid .f-field { margin:0; }
+    .plan-selected-actions { display:flex; gap:8px; margin-top:10px; }
+    .plan-selected-actions button { flex:1; padding:9px; border-radius:8px; border:1px solid var(--border); background:var(--bg3); color:var(--text); }
+    .plan-selected-actions .danger { color:var(--accent); border-color:rgba(233,69,96,.45); }
+    .plan-event-list { display:grid; gap:6px; margin-top:10px; }
+    .plan-event-row { display:grid; grid-template-columns:auto 1fr auto; gap:8px; align-items:center; border:1px solid var(--border); border-radius:8px; background:var(--bg2); padding:8px; color:var(--text); }
+    .plan-event-row.selected { border-color:#fff; }
+    .plan-save-dock { position:sticky; bottom:-12px; z-index:20; padding:10px 0 4px; background:linear-gradient(transparent,var(--bg) 22%); }
+    @media (max-width:380px) { .plan-v-head { grid-template-columns:46px repeat(4,minmax(0,1fr)); }.plan-v-time-gutter{width:46px}.plan-v-lanes{left:46px}.plan-v-head span{font-size:8px}.plan-selected-grid{grid-template-columns:1fr;} }
     .f-save-btn { width: 100%; padding: 14px; border-radius: 10px; background: var(--green); color: #fff; font-size: 15px; font-weight: 700; border: none; cursor: pointer; margin-bottom: 8px; }
     .f-save-btn:active { filter: brightness(.9); }
     .f-save-btn:disabled { opacity: .5; cursor: default; }
@@ -286,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.26</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.27</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -303,6 +347,7 @@
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
     <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this);loadPcuStatus()"><span class="ticon">🎮</span>Bot</button>
     <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud(true)"><span class="ticon">⏰</span>Sched</button>
+    <button id="tab-btn-plan"                     onclick="switchTab('plan',this);loadCfgCloud(true)"><span class="ticon">📅</span>Plan</button>
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
     <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true,false)">    <span class="ticon">📦</span>Haul</button>
@@ -421,45 +466,6 @@
         </div>
         <div class="f-section">
           <div class="f-section-header">
-            <div class="section-title">&#128197; Planner Giornaliero CPT</div>
-            <span class="f-hint" id="sc-daily-state">Stato gestito dal tab Bot</span>
-          </div>
-          <div class="f-hint">Point Blank, Assault, Backstab e finestre Autorefresh RFY/CPT. Se abilitato prende priorità sullo scheduler orario classico.</div>
-          <div class="daily-plan-box">
-            <div class="daily-plan-actions">
-              <button type="button" onclick="dailyAwayPresetHourlyPb()">PB ogni ora :00</button>
-              <button type="button" onclick="dailyAwayPresetArAroundPb()">AR attorno ai PB</button>
-              <button type="button" onclick="dailyAwayClear()">Pulisci</button>
-            </div>
-            <div class="daily-add-row pb">
-              <div class="f-field"><label>Point Blank</label><input type="time" id="sc-daily-pb-at" value="00:00:00" step="1"></div>
-              <label class="f-check-row"><input type="checkbox" id="sc-daily-pb-random"> Random ±2 min</label>
-              <button class="f-reload-btn" type="button" onclick="dailyAwayAddPb()">+ PB</button>
-            </div>
-            <div class="daily-add-row">
-              <div class="f-field"><label>AR da</label><input type="time" id="sc-daily-ar-from" value="00:58:00" step="1"></div>
-              <div class="f-field"><label>AR a</label><input type="time" id="sc-daily-ar-to" value="01:03:00" step="1"></div>
-              <button class="f-reload-btn" type="button" onclick="dailyAwayAddAr()">+ AR</button>
-            </div>
-            <div class="daily-add-row">
-              <div class="f-field"><label>Backstab da</label><input type="time" id="sc-daily-bs-from" value="00:58:00" step="1"></div>
-              <div class="f-field"><label>Backstab a</label><input type="time" id="sc-daily-bs-to" value="01:03:00" step="1"></div>
-              <button class="f-reload-btn" type="button" onclick="dailyAwayAddBackstab()">+ Backstab</button>
-            </div>
-            <div class="daily-add-row">
-              <div class="f-field"><label>Assault target</label><input type="time" id="sc-daily-assault-at" value="02:00:00" step="1"></div>
-              <div class="f-field"><label>Ore attive</label><div><input class="f-etv-input" type="number" id="sc-daily-assault-from" min="0" max="23" value="2"> – <input class="f-etv-input" type="number" id="sc-daily-assault-to" min="0" max="23" value="7"></div></div>
-              <button class="f-reload-btn" type="button" onclick="dailyAwayAddAssault()">+ Assault</button>
-            </div>
-            <div class="daily-event-list" id="sc-daily-events"></div>
-            <div class="f-hint" id="sc-daily-preset-status"></div>
-            <div class="daily-preset-row"><span id="sc-daily-preset-label-1">Preset 1</span><button onclick="dailyAwaySavePreset(1)">Salva</button><button onclick="dailyAwayLoadPreset(1)">Carica</button><button onclick="dailyAwayDeletePreset(1)">Cancella</button></div>
-            <div class="daily-preset-row"><span id="sc-daily-preset-label-2">Preset 2</span><button onclick="dailyAwaySavePreset(2)">Salva</button><button onclick="dailyAwayLoadPreset(2)">Carica</button><button onclick="dailyAwayDeletePreset(2)">Cancella</button></div>
-            <div class="daily-preset-row"><span id="sc-daily-preset-label-3">Preset 3</span><button onclick="dailyAwaySavePreset(3)">Salva</button><button onclick="dailyAwayLoadPreset(3)">Carica</button><button onclick="dailyAwayDeletePreset(3)">Cancella</button></div>
-          </div>
-        </div>
-        <div class="f-section">
-          <div class="f-section-header">
             <div class="section-title">🕹️ Pattern Manuali DPT / AA</div>
             <span class="f-hint" id="sc-m-state">Scheduler generale gestito dal tab Bot</span>
           </div>
@@ -472,6 +478,53 @@
         </div>
         <button class="f-save-btn" id="sched-save-btn" onclick="saveScheduler()">💾 Salva e applica a PCU</button>
         <button class="f-reload-btn" onclick="loadCfgCloud(true)">↺ Ricarica da Firebase</button>
+      </div>
+    </div>
+
+    <!-- ── PLAN CPT ── -->
+    <div class="tab-panel" id="tab-plan">
+      <div id="plan-not-configured" class="not-configured" style="display:none">⚙️ Configura <strong>Firebase Email</strong> e <strong>Password</strong> nelle Impostazioni.</div>
+      <div id="plan-loading" class="not-configured" style="display:none">⏳ Caricamento planner…</div>
+      <div id="plan-body" style="display:none">
+        <div id="plan-status-bar"></div>
+        <div class="f-section-header">
+          <div><div class="section-title">📅 Planner Giornaliero CPT</div><div class="f-hint" id="sc-daily-state">Stato gestito dal tab Bot</div></div>
+          <label class="f-toggle" title="Abilita pianificazione giornaliera"><input type="checkbox" id="sc-daily-enabled" onchange="dailyPlanMarkDirty()"><div class="f-toggle-track"></div></label>
+        </div>
+        <div class="f-hint">Quando attivo ha priorità sullo scheduler orario CPT. Scorri dalla colonna delle ore; usa le corsie per creare e modificare gli eventi.</div>
+        <div class="daily-plan-actions">
+          <button type="button" onclick="dailyAwayPresetHourlyPb()">PB ogni ora :00</button>
+          <button type="button" onclick="dailyAwayPresetArAroundPb()">AR attorno ai PB</button>
+          <button type="button" onclick="dailyAwayClear()">Pulisci</button>
+        </div>
+        <details class="daily-plan-box">
+          <summary style="cursor:pointer;font-weight:800;font-size:12px">Preset cloud</summary>
+          <div class="f-hint" id="sc-daily-preset-status"></div>
+          <div class="daily-preset-row"><span id="sc-daily-preset-label-1">Preset 1</span><button onclick="dailyAwaySavePreset(1)">Salva</button><button onclick="dailyAwayLoadPreset(1)">Carica</button><button onclick="dailyAwayDeletePreset(1)">Cancella</button></div>
+          <div class="daily-preset-row"><span id="sc-daily-preset-label-2">Preset 2</span><button onclick="dailyAwaySavePreset(2)">Salva</button><button onclick="dailyAwayLoadPreset(2)">Carica</button><button onclick="dailyAwayDeletePreset(2)">Cancella</button></div>
+          <div class="daily-preset-row"><span id="sc-daily-preset-label-3">Preset 3</span><button onclick="dailyAwaySavePreset(3)">Salva</button><button onclick="dailyAwayLoadPreset(3)">Carica</button><button onclick="dailyAwayDeletePreset(3)">Cancella</button></div>
+        </details>
+        <div class="plan-toolbar">
+          <button type="button" onclick="dailyPlanZoom(-1)">−</button><span class="plan-zoom-label" id="plan-zoom-label">75%</span><button type="button" onclick="dailyPlanZoom(1)">+</button>
+          <button type="button" onclick="dailyPlanScrollNow()">Ora attuale</button>
+          <span class="plan-toolbar-hint">Tap: Point Blank/Assault · Trascina: Backstab/Autorefresh · Trascina gli eventi per spostarli</span>
+        </div>
+        <div class="plan-v-shell">
+          <div class="plan-v-head"><span class="time">Ora</span><span class="pb">PB</span><span class="as">Assault</span><span class="bs">Backstab</span><span class="ar">AR</span></div>
+          <div class="plan-v-scroll" id="plan-v-scroll">
+            <div class="plan-v-canvas" id="plan-v-canvas">
+              <div class="plan-v-time-gutter"></div><div id="plan-v-grid"></div>
+              <div class="plan-v-lanes" id="plan-v-lanes">
+                <div class="plan-v-lane pb" data-type="point_blank"></div><div class="plan-v-lane as" data-type="hotspot"></div><div class="plan-v-lane bs" data-type="backstab_window"></div><div class="plan-v-lane ar" data-type="ar_window"></div>
+              </div>
+              <div class="plan-v-guide" id="plan-v-guide"><span>00:00:00</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="plan-selected" id="plan-selected"></div>
+        <div class="plan-event-list" id="sc-daily-events"></div>
+        <div class="plan-save-dock"><button class="f-save-btn" id="plan-save-btn" onclick="saveDailyPlan()">💾 Salva Plan e applica a PCU</button></div>
+        <button class="f-reload-btn" onclick="loadCfgCloud(true)">↺ Ricarica Plan da Firebase</button>
       </div>
     </div>
 
@@ -1230,6 +1283,12 @@ function filterConfigSubset(data) {
     schema: 'pcu_filters_v2'
   };
 }
+function schedulerConfigSubset(data) {
+  return { arScheduleCpt:data.arScheduleCpt, arScheduleHourly:data.arScheduleHourly, updatedAt:Date.now(), schema:'pcu_config_v1', source:'pcu-away' };
+}
+function planConfigSubset(data) {
+  return { dailyCptPlan:normalizeDailyAwayPlan(data.dailyCptPlan||{}), updatedAt:Date.now(), schema:'pcu_config_v1', source:'pcu-away' };
+}
 
 function sortTextList(list) {
   return (list || []).map(function(v){ return String(v || '').trim().toLowerCase(); }).filter(Boolean)
@@ -1247,10 +1306,10 @@ function sortRules(rules) {
 function loadCfgGist(force) { return loadCfgCloud(force); } // legacy alias: i tab ora usano Firebase
 
 function loadCfgCloud(force) {
-  if (_fData && !force) { showNs('sched','body'); populateSchedulerForm(); showNs('filters','body'); renderFilters(); return; }
+  if (_fData && !force) { showNs('sched','body'); showNs('plan','body'); populateSchedulerForm(); showNs('filters','body'); renderFilters(); return; }
   if (_cfgLoading && !force) return;
   _cfgLoading = true;
-  ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
+  ['sched','plan','filters'].forEach(function(ns){ showNs(ns,'loading'); });
   Promise.all([
     fbDbRead('/pcu_status'),
     fbDbRead('/pcu_config/current'),
@@ -1280,19 +1339,19 @@ function loadCfgCloud(force) {
     return data;
   }).then(function(data) {
     _fData = normalizeRemoteConfig(data); _fData._pcuLiveConfig = !!data._pcuLiveConfig; _fData._cloudLoaded = true; _fDirty = false; _cfgLoading = false;
-    showNs('sched','body'); populateSchedulerForm();
+    showNs('sched','body'); showNs('plan','body'); populateSchedulerForm();
     showNs('filters','body'); renderFilters();
   }).catch(function(e) {
     _cfgLoading = false;
-    ['sched','filters'].forEach(function(ns) {
-      var el = document.getElementById(ns === 'sched' ? 'sched-not-configured' : 'filters-not-configured');
+    ['sched','plan','filters'].forEach(function(ns) {
+      var el = document.getElementById(ns+'-not-configured');
       if (el) el.textContent = '❌ ' + (e.message||'Errore');
       showNs(ns,'not-configured');
     });
   });
 }
 function showNs(ns, what) {
-  var p = ns === 'sched' ? 'sched' : 'filters';
+  var p = (ns === 'sched' || ns === 'plan') ? ns : 'filters';
   var nc = document.getElementById(p+'-not-configured');
   var ld = document.getElementById(p+'-loading');
   var bd = document.getElementById(p+'-body');
@@ -1342,7 +1401,7 @@ function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
   delete payload._pcuLiveConfig;
   delete payload._cloudLoaded;
   payload.updatedAt = Date.now(); payload.schema = 'pcu_config_v1'; payload.source = 'pcu-away';
-  var configPatch = scope === 'filters' ? filterConfigSubset(payload) : payload;
+  var configPatch = scope === 'filters' ? filterConfigSubset(payload) : scope === 'scheduler' ? schedulerConfigSubset(payload) : scope === 'plan' ? planConfigSubset(payload) : payload;
   configPatch.updatedAt = payload.updatedAt; configPatch.schema = 'pcu_config_v1'; configPatch.source = 'pcu-away';
   fbDbWrite('/pcu_config/current', 'PATCH', configPatch).then(function() {
     if (scope !== 'filters') return true;
@@ -1495,36 +1554,91 @@ function readDailyAwayPlan() {
   p.enabled = en ? !!en.checked : !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled);
   return p;
 }
-function renderDailyPlannerAway() {
-  if (!_fData) return;
-  _fData.dailyCptPlan = normalizeDailyAwayPlan(_fData.dailyCptPlan || {});
-  var en = document.getElementById('sc-daily-enabled'); if (en) en.checked = !!_fData.dailyCptPlan.enabled;
-  var st = document.getElementById('sc-daily-state'); if (st) st.textContent = _fData.dailyCptPlan.enabled ? 'Attiva - gestione nel tab Bot' : 'Disattiva - gestione nel tab Bot';
-  var list = document.getElementById('sc-daily-events'); if (!list) return;
-  list.innerHTML = '';
-  if (!_fData.dailyCptPlan.events.length) { list.innerHTML = '<div class="f-hint">Nessun evento nel planner giornaliero.</div>'; return; }
-  _fData.dailyCptPlan.events.forEach(function(ev, idx) {
-    var row = document.createElement('div'); row.className = 'daily-event';
-    var meta = ev.type === 'point_blank' ? { cls:'pb', label:'PB', time:ev.at + (ev.randomize ? ' · random ±2 min' : '') } :
-      ev.type === 'backstab_window' ? { cls:'bs', label:'Backstab', time:ev.from + ' → ' + ev.to } :
-      ev.type === 'hotspot' ? { cls:'as', label:'Assault', time:ev.target + ' · ore ' + ev.fromHour + '–' + ev.toHour } :
-      { cls:'ar', label:'AR', time:ev.from + ' → ' + ev.to };
-    row.innerHTML = '<span class="daily-badge '+meta.cls+'">'+meta.label+'</span><span class="daily-time">'+meta.time+'</span><button class="daily-event-del" type="button">×</button>';
-    row.querySelector('button').onclick = function(){ _fData.dailyCptPlan.events.splice(idx,1); renderDailyPlannerAway(); };
-    list.appendChild(row);
+var DAILY_PLAN_ZOOMS=[0.5,0.75,1,1.5];
+var _dailyPlanZoomIndex=1, _dailyPlanSelectedId=null, _dailyPlanPointer=null, _dailyPlanBound=false;
+function dailyPlanScale(){return DAILY_PLAN_ZOOMS[_dailyPlanZoomIndex];}
+function dailyPlanClampMinute(v){return Math.max(0,Math.min(1439+59/60,Number(v)||0));}
+function dailyPlanSnapMinute(v){return dailyPlanClampMinute(Math.round((Number(v)||0)*6)/6);}
+function dailyPlanEventById(id){return _fData&&_fData.dailyCptPlan&&_fData.dailyCptPlan.events.find(function(ev){return String(ev.id)===String(id);});}
+function dailyPlanEventStart(ev){return ev.type==='point_blank'?dailyAwayTimeToMin(ev.at):ev.type==='hotspot'?ev.fromHour*60+(dailyAwayTimeToMin(ev.target)%60):dailyAwayTimeToMin(ev.from);}
+function dailyPlanLabel(ev){return ev.type==='point_blank'?'Point Blank':ev.type==='hotspot'?'Assault':ev.type==='backstab_window'?'Backstab':'Autorefresh';}
+function dailyPlanTiming(ev){return ev.type==='point_blank'?ev.at+(ev.randomize?' · random ±2':''):ev.type==='hotspot'?(dailyAwayPad2(ev.fromHour)+String(ev.target).slice(2)+' → '+dailyAwayPad2(ev.toHour)+String(ev.target).slice(2)):ev.from+' → '+ev.to;}
+function dailyPlanMarkDirty(){
+  if(!_fData)return; var en=document.getElementById('sc-daily-enabled'); if(en)_fData.dailyCptPlan.enabled=!!en.checked;
+  _fDirty=true; var st=document.getElementById('plan-status-bar'); if(st)setBarStatus('plan-status-bar','Modifiche non ancora salvate','');
+  var ds=document.getElementById('sc-daily-state'); if(ds)ds.textContent=_fData.dailyCptPlan.enabled?'Attiva - modifiche da salvare':'Disattiva - modifiche da salvare';
+}
+function dailyPlanMinuteFromPointer(e){var c=document.getElementById('plan-v-canvas'),r=c.getBoundingClientRect();return dailyPlanSnapMinute((e.clientY-r.top)/dailyPlanScale());}
+function dailyPlanShowGuide(minute){var g=document.getElementById('plan-v-guide');if(!g)return;g.style.display='block';g.style.top=(dailyPlanClampMinute(minute)*dailyPlanScale())+'px';g.querySelector('span').textContent=dailyAwayMinToTime(minute);}
+function dailyPlanHideGuide(){var g=document.getElementById('plan-v-guide');if(g&&!_dailyPlanPointer)g.style.display='none';}
+function dailyPlanAppendEvent(lane,ev,top,height,cls,occurrenceHour){
+  var el=document.createElement('div');el.className='plan-v-event '+cls+(String(ev.id)===String(_dailyPlanSelectedId)?' selected':'');el.dataset.eventId=ev.id;
+  if(occurrenceHour!=null)el.dataset.occurrenceHour=occurrenceHour;el.style.top=(top*dailyPlanScale())+'px';
+  if(height!=null){el.style.height=Math.max(6,height*dailyPlanScale())+'px';el.innerHTML='<span class="plan-v-handle start" data-handle="start"></span><span class="plan-v-handle end" data-handle="end"></span>';}
+  el.title=dailyPlanLabel(ev)+' '+dailyPlanTiming(ev);lane.appendChild(el);
+}
+function renderDailyPlannerAway(){
+  if(!_fData)return;_fData.dailyCptPlan=normalizeDailyAwayPlan(_fData.dailyCptPlan||{});
+  if(_dailyPlanSelectedId&&!dailyPlanEventById(_dailyPlanSelectedId))_dailyPlanSelectedId=null;
+  var en=document.getElementById('sc-daily-enabled');if(en)en.checked=!!_fData.dailyCptPlan.enabled;
+  var st=document.getElementById('sc-daily-state');if(st)st.textContent=_fData.dailyCptPlan.enabled?'Attiva - gestione nel tab Bot':'Disattiva - gestione nel tab Bot';
+  var canvas=document.getElementById('plan-v-canvas'),grid=document.getElementById('plan-v-grid'),lanes=document.getElementById('plan-v-lanes');
+  if(!canvas||!grid||!lanes)return;var scale=dailyPlanScale(),height=1440*scale;canvas.style.height=height+'px';lanes.style.height=height+'px';grid.innerHTML='';
+  for(var h=0;h<=24;h++){var line=document.createElement('div');line.className='plan-v-hour';line.style.top=(h*60*scale)+'px';grid.appendChild(line);if(h<24){var lab=document.createElement('span');lab.className='plan-v-hour-label';lab.style.top=(h*60*scale)+'px';lab.textContent=dailyAwayPad2(h)+':00';grid.appendChild(lab);var half=document.createElement('div');half.className='plan-v-hour half';half.style.top=((h*60+30)*scale)+'px';grid.appendChild(half);}}
+  lanes.querySelectorAll('.plan-v-event').forEach(function(el){el.remove();});
+  var laneMap={point_blank:lanes.querySelector('[data-type="point_blank"]'),hotspot:lanes.querySelector('[data-type="hotspot"]'),backstab_window:lanes.querySelector('[data-type="backstab_window"]'),ar_window:lanes.querySelector('[data-type="ar_window"]')};
+  _fData.dailyCptPlan.events.forEach(function(ev){
+    if(ev.type==='point_blank')dailyPlanAppendEvent(laneMap.point_blank,ev,dailyAwayTimeToMin(ev.at),null,'pb'+(ev.randomize?' randomized':''));
+    else if(ev.type==='hotspot'){var target=dailyAwayTimeToMin(ev.target)%60;for(var hh=ev.fromHour;hh<=ev.toHour;hh++)dailyPlanAppendEvent(laneMap.hotspot,ev,hh*60+target,null,'as',hh);}
+    else{var from=dailyAwayTimeToMin(ev.from),to=dailyAwayTimeToMin(ev.to),end=to>from?to:1440;dailyPlanAppendEvent(laneMap[ev.type],ev,from,end-from,ev.type==='backstab_window'?'bs':'ar');}
+  });
+  document.getElementById('plan-zoom-label').textContent=Math.round(scale*100)+'%';dailyPlanRenderList();dailyPlanRenderSelected();dailyPlanBindPointers();
+}
+function dailyPlanRenderList(){
+  var list=document.getElementById('sc-daily-events');if(!list)return;list.innerHTML='';
+  if(!_fData.dailyCptPlan.events.length){list.innerHTML='<div class="f-hint">Nessun evento. Inseriscilo direttamente nella corsia corretta.</div>';return;}
+  _fData.dailyCptPlan.events.forEach(function(ev){var row=document.createElement('button');row.type='button';row.className='plan-event-row'+(String(ev.id)===String(_dailyPlanSelectedId)?' selected':'');var cls=ev.type==='point_blank'?'pb':ev.type==='hotspot'?'as':ev.type==='backstab_window'?'bs':'ar';row.innerHTML='<span class="daily-badge '+cls+'">'+dailyPlanLabel(ev)+'</span><span class="daily-time">'+dailyPlanTiming(ev)+'</span><span>›</span>';row.onclick=function(){dailyPlanSelect(ev.id,true);};list.appendChild(row);});
+}
+function dailyPlanRenderSelected(){
+  var box=document.getElementById('plan-selected'),ev=dailyPlanEventById(_dailyPlanSelectedId);if(!box)return;
+  if(!ev){box.className='plan-selected';box.innerHTML='';return;}box.className='plan-selected visible';var fields='';
+  if(ev.type==='point_blank')fields='<div class="f-field"><label>Ora esatta</label><input type="time" step="1" value="'+ev.at+'" onchange="dailyPlanEditSelected(\'at\',this.value)"></div><label class="f-check-row"><input type="checkbox" '+(ev.randomize?'checked':'')+' onchange="dailyPlanEditSelected(\'randomize\',this.checked)"> Random -2/+2</label>';
+  else if(ev.type==='hotspot')fields='<div class="f-field"><label>Target</label><input type="time" step="1" value="'+ev.target+'" onchange="dailyPlanEditSelected(\'target\',this.value)"></div><div class="f-field"><label>Profilo</label><select class="f-add-input" onchange="dailyPlanEditSelected(\'profile\',this.value)"><option value="surgical_night" '+(ev.profile==='surgical_night'?'selected':'')+'>Precision Sniping</option><option value="surgical_aggressive" '+(ev.profile==='surgical_aggressive'?'selected':'')+'>Surgical Strike</option></select></div><div class="f-field"><label>Ora iniziale</label><input type="number" min="0" max="23" value="'+ev.fromHour+'" onchange="dailyPlanEditSelected(\'fromHour\',this.value)"></div><div class="f-field"><label>Ora finale</label><input type="number" min="0" max="23" value="'+ev.toHour+'" onchange="dailyPlanEditSelected(\'toHour\',this.value)"></div>';
+  else fields='<div class="f-field"><label>Da</label><input type="time" step="1" value="'+ev.from+'" onchange="dailyPlanEditSelected(\'from\',this.value)"></div><div class="f-field"><label>A</label><input type="time" step="1" value="'+ev.to+'" onchange="dailyPlanEditSelected(\'to\',this.value)"></div>';
+  box.innerHTML='<div class="plan-selected-title"><span>'+dailyPlanLabel(ev)+'</span><span>'+dailyPlanTiming(ev)+'</span></div><div class="plan-selected-grid">'+fields+'</div><div class="plan-selected-actions"><button type="button" onclick="dailyPlanDeselect()">Chiudi</button><button type="button" class="danger" onclick="dailyPlanDeleteSelected()">Elimina</button></div>';
+}
+function dailyPlanSelect(id,scroll){_dailyPlanSelectedId=id;renderDailyPlannerAway();if(scroll){var ev=dailyPlanEventById(id),sc=document.getElementById('plan-v-scroll');if(ev&&sc)sc.scrollTo({top:Math.max(0,dailyPlanEventStart(ev)*dailyPlanScale()-sc.clientHeight/2),behavior:'smooth'});}}
+function dailyPlanDeselect(){_dailyPlanSelectedId=null;renderDailyPlannerAway();}
+function dailyPlanDeleteSelected(){if(!_fData||!_dailyPlanSelectedId)return;_fData.dailyCptPlan.events=_fData.dailyCptPlan.events.filter(function(ev){return String(ev.id)!==String(_dailyPlanSelectedId);});_dailyPlanSelectedId=null;dailyPlanMarkDirty();renderDailyPlannerAway();}
+function dailyPlanEditSelected(field,value){var ev=dailyPlanEventById(_dailyPlanSelectedId);if(!ev)return;if(field==='randomize'){ev.randomize=!!value;ev.randomBeforeSec=value?120:0;ev.randomAfterSec=value?120:0;}else if(field==='fromHour'||field==='toHour'){ev[field]=Math.max(0,Math.min(23,parseInt(value,10)||0));if(ev.toHour<ev.fromHour)ev.toHour=ev.fromHour;}else ev[field]=value;_fData.dailyCptPlan=normalizeDailyAwayPlan(_fData.dailyCptPlan);dailyPlanMarkDirty();renderDailyPlannerAway();}
+function dailyPlanZoom(delta){var sc=document.getElementById('plan-v-scroll'),old=dailyPlanScale(),center=sc?(sc.scrollTop+sc.clientHeight/2)/old:0;_dailyPlanZoomIndex=Math.max(0,Math.min(DAILY_PLAN_ZOOMS.length-1,_dailyPlanZoomIndex+delta));renderDailyPlannerAway();if(sc)sc.scrollTop=Math.max(0,center*dailyPlanScale()-sc.clientHeight/2);}
+function dailyPlanScrollNow(){var d=new Date(),min=d.getHours()*60+d.getMinutes()+d.getSeconds()/60,sc=document.getElementById('plan-v-scroll');if(sc)sc.scrollTo({top:Math.max(0,min*dailyPlanScale()-sc.clientHeight/2),behavior:'smooth'});dailyPlanShowGuide(min);setTimeout(dailyPlanHideGuide,1800);}
+function dailyPlanBindPointers(){
+  if(_dailyPlanBound)return;var lanes=document.getElementById('plan-v-lanes');if(!lanes)return;_dailyPlanBound=true;
+  lanes.querySelectorAll('.plan-v-lane').forEach(function(lane){
+    lane.addEventListener('pointerdown',function(e){if(e.button!=null&&e.button!==0)return;var minute=dailyPlanMinuteFromPointer(e),target=e.target.closest('.plan-v-event'),type=lane.dataset.type,ev;
+      if(target){ev=dailyPlanEventById(target.dataset.eventId);_dailyPlanSelectedId=ev&&ev.id;var handle=e.target.dataset.handle;_dailyPlanPointer={id:ev.id,action:handle?('resize-'+handle):(ev.type==='point_blank'?'move-point':ev.type==='hotspot'?'move-assault':'move-window'),start:minute,at:dailyPlanEventStart(ev),target:ev.target?dailyAwayTimeToMin(ev.target):0,from:ev.from?dailyAwayTimeToMin(ev.from):0,to:ev.to?dailyAwayTimeToMin(ev.to):0,fromHour:ev.fromHour,toHour:ev.toHour,occurrenceHour:parseInt(target.dataset.occurrenceHour,10)};}
+      else{var id=type+'_'+Date.now();if(type==='point_blank')ev={id:id,type:type,at:dailyAwayMinToTime(minute),queue:'RFY'};else if(type==='hotspot'){var hour=Math.floor(minute/60);ev={id:id,type:type,target:dailyAwayMinToTime(minute),fromHour:hour,toHour:hour,profile:'surgical_night',queue:'RFY'};}else ev={id:id,type:type,from:dailyAwayMinToTime(minute),to:dailyAwayMinToTime(minute+1/6),queue:'RFY'};_fData.dailyCptPlan.events.push(ev);_dailyPlanSelectedId=id;_dailyPlanPointer={id:id,action:(type==='point_blank'?'move-point':type==='hotspot'?'move-assault':'create-window'),start:minute,at:minute,from:minute,to:minute+1/6,fromHour:ev.fromHour,toHour:ev.toHour,occurrenceHour:ev.fromHour};}
+      lane.setPointerCapture(e.pointerId);dailyPlanShowGuide(minute);dailyPlanMarkDirty();renderDailyPlannerAway();e.preventDefault();});
+    lane.addEventListener('pointermove',function(e){var minute=dailyPlanMinuteFromPointer(e);dailyPlanShowGuide(minute);var p=_dailyPlanPointer;if(!p)return;var ev=dailyPlanEventById(p.id);if(!ev)return;var delta=minute-p.start;
+      if(p.action==='move-point')ev.at=dailyAwayMinToTime(p.at+delta);
+      else if(p.action==='move-assault'){var span=Math.max(0,p.toHour-p.fromHour),base=isFinite(p.occurrenceHour)?p.occurrenceHour:p.fromHour,newOccurrence=dailyPlanClampMinute(base*60+(p.target%60)+delta),newHour=Math.floor(newOccurrence/60);ev.target=dailyAwayMinToTime(newOccurrence);ev.fromHour=Math.max(0,Math.min(23-span,p.fromHour+(newHour-base)));ev.toHour=ev.fromHour+span;}
+      else if(p.action==='create-window'){var a=Math.min(p.start,minute),b=Math.max(p.start,minute);if(b-a<1/6)b=a+1/6;ev.from=dailyAwayMinToTime(a);ev.to=dailyAwayMinToTime(b);}
+      else if(p.action==='move-window'){var dur=p.to>p.from?p.to-p.from:1440-p.from,newFrom=Math.max(0,Math.min(1440-dur,p.from+delta));ev.from=dailyAwayMinToTime(newFrom);ev.to=dailyAwayMinToTime(newFrom+dur);}
+      else if(p.action==='resize-start'){ev.from=dailyAwayMinToTime(Math.min(minute,p.to-1/6));}
+      else if(p.action==='resize-end'){ev.to=dailyAwayMinToTime(Math.max(minute,p.from+1/6));}
+      dailyPlanMarkDirty();renderDailyPlannerAway();e.preventDefault();});
+    function finish(){if(!_dailyPlanPointer)return;_dailyPlanPointer=null;dailyPlanHideGuide();_fData.dailyCptPlan=normalizeDailyAwayPlan(_fData.dailyCptPlan);renderDailyPlannerAway();}
+    lane.addEventListener('pointerup',finish);lane.addEventListener('pointercancel',finish);lane.addEventListener('pointerleave',dailyPlanHideGuide);
   });
 }
-function dailyAwayAddPb() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; var randomize=!!document.getElementById('sc-daily-pb-random').checked; _fData.dailyCptPlan.events.push({ id:'pb_'+Date.now(), type:'point_blank', at: document.getElementById('sc-daily-pb-at').value || '00:00:00', queue:'RFY', randomize:randomize, randomBeforeSec:randomize?120:0, randomAfterSec:randomize?120:0 }); renderDailyPlannerAway(); }
-function dailyAwayAddAr() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'ar_'+Date.now(), type:'ar_window', from: document.getElementById('sc-daily-ar-from').value || '00:58:00', to: document.getElementById('sc-daily-ar-to').value || '01:03:00', queue:'RFY' }); renderDailyPlannerAway(); }
-function dailyAwayAddBackstab() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'backstab_'+Date.now(), type:'backstab_window', from:document.getElementById('sc-daily-bs-from').value || '00:58:00', to:document.getElementById('sc-daily-bs-to').value || '01:03:00', queue:'RFY' }); renderDailyPlannerAway(); }
-function dailyAwayAddAssault() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; var fromHour=parseInt(document.getElementById('sc-daily-assault-from').value,10)||0; var toHour=parseInt(document.getElementById('sc-daily-assault-to').value,10)||fromHour; _fData.dailyCptPlan.events.push({ id:'assault_'+Date.now(), type:'hotspot', target:document.getElementById('sc-daily-assault-at').value || '02:00:00', fromHour:fromHour, toHour:Math.max(fromHour,toHour), profile:'surgical_night', queue:'RFY' }); renderDailyPlannerAway(); }
-function dailyAwayClear() { if (_fData) { _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:[] }; renderDailyPlannerAway(); } }
-function dailyAwayPresetHourlyPb() { if (!_fData) return; var events=[]; for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:events }; renderDailyPlannerAway(); }
-function dailyAwayPresetArAroundPb() { if (!_fData) return; var p = normalizeDailyAwayPlan(_fData.dailyCptPlan || {}); var events = p.events.filter(function(ev){ return ev.type === 'point_blank'; }).slice(); if (!events.length) { for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); } var pre = parseInt(document.getElementById('sc-pre').value) || 2, post = parseInt(document.getElementById('sc-post').value) || 10; events.filter(function(ev){ return ev.type === 'point_blank'; }).forEach(function(ev, idx){ var at = dailyAwayTimeToMin(ev.at); events.push({ id:'ar_pb_'+idx, type:'ar_window', from:dailyAwayMinToTime(at-pre), to:dailyAwayMinToTime(at+post), queue:'RFY' }); }); _fData.dailyCptPlan = { enabled:p.enabled, events:events }; renderDailyPlannerAway(); }
+function dailyAwayClear(){if(_fData){_fData.dailyCptPlan={enabled:!!(_fData.dailyCptPlan&&_fData.dailyCptPlan.enabled),events:[]};_dailyPlanSelectedId=null;dailyPlanMarkDirty();renderDailyPlannerAway();}}
+function dailyAwayPresetHourlyPb() { if (!_fData) return; var events=[]; for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:events }; dailyPlanMarkDirty(); renderDailyPlannerAway(); }
+function dailyAwayPresetArAroundPb() { if (!_fData) return; var p = normalizeDailyAwayPlan(_fData.dailyCptPlan || {}); var events = p.events.filter(function(ev){ return ev.type === 'point_blank'; }).slice(); if (!events.length) { for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); } var pre = parseInt(document.getElementById('sc-pre').value) || 2, post = parseInt(document.getElementById('sc-post').value) || 10; events.filter(function(ev){ return ev.type === 'point_blank'; }).forEach(function(ev, idx){ var at = dailyAwayTimeToMin(ev.at); events.push({ id:'ar_pb_'+idx, type:'ar_window', from:dailyAwayMinToTime(at-pre), to:dailyAwayMinToTime(at+post), queue:'RFY' }); }); _fData.dailyCptPlan = { enabled:p.enabled, events:events }; dailyPlanMarkDirty(); renderDailyPlannerAway(); }
 function dailyAwayPresetStatus(msg, ok) { var el = document.getElementById('sc-daily-preset-status'); if (el) { el.textContent = msg || ''; el.style.color = ok === true ? 'var(--green)' : ok === false ? 'var(--accent)' : 'var(--text2)'; } }
 function refreshDailyAwayPresets() { fbDbRead('/pcu_config/dailyPlannerPresets').then(function(rows){ rows = rows || {}; [1,2,3].forEach(function(slot){ var el = document.getElementById('sc-daily-preset-label-'+slot), row = rows['slot'+slot]; if (el) el.textContent = row && row.name ? row.name : 'Preset '+slot; }); }).catch(function(){}); }
 function dailyAwaySavePreset(slot) { var name = prompt('Nome preset '+slot+':', 'Preset '+slot); if (name === null) return; var payload = { name: (name.trim() || ('Preset '+slot)).slice(0,60), plan: readDailyAwayPlan(), updatedAt: Date.now(), schema:'pcu_daily_planner_preset_v1' }; dailyAwayPresetStatus('Salvo preset '+slot+'...', null); fbDbWrite('/pcu_config/dailyPlannerPresets/slot'+slot, 'PUT', payload).then(function(){ dailyAwayPresetStatus('Preset '+slot+' salvato', true); refreshDailyAwayPresets(); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
-function dailyAwayLoadPreset(slot) { dailyAwayPresetStatus('Carico preset '+slot+'...', null); fbDbRead('/pcu_config/dailyPlannerPresets/slot'+slot).then(function(row){ if (!row || !row.plan) throw new Error('Preset vuoto'); _fData.dailyCptPlan = normalizeDailyAwayPlan(row.plan); renderDailyPlannerAway(); dailyAwayPresetStatus('Preset '+slot+' caricato. Premi Salva e applica a PCU.', true); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
+function dailyAwayLoadPreset(slot) { dailyAwayPresetStatus('Carico preset '+slot+'...', null); fbDbRead('/pcu_config/dailyPlannerPresets/slot'+slot).then(function(row){ if (!row || !row.plan) throw new Error('Preset vuoto'); _fData.dailyCptPlan = normalizeDailyAwayPlan(row.plan); dailyPlanMarkDirty(); renderDailyPlannerAway(); dailyAwayPresetStatus('Preset '+slot+' caricato. Premi Salva Plan.', true); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
 function dailyAwayDeletePreset(slot) { if (!confirm('Cancellare il preset '+slot+' da Firebase?')) return; fbDbRequest('/pcu_config/dailyPlannerPresets/slot'+slot, { method:'DELETE' }).then(function(){ dailyAwayPresetStatus('Preset '+slot+' cancellato', true); refreshDailyAwayPresets(); }).catch(function(e){ dailyAwayPresetStatus('Errore preset: '+(e.message||e), false); }); }
 
 function populateSchedulerForm() {
@@ -1588,8 +1702,12 @@ function saveScheduler() {
   _fData.arScheduleHourly.manualByQueue.AI.enabled = document.getElementById('sc-m-ai-enabled').checked;
   _fData.arScheduleHourly.manualByQueue.AI.minute = aiMinVal !== '' ? parseInt(aiMinVal,10) : null;
   _fData.arScheduleHourly.manualByQueue.AI.durationMin = parseInt(document.getElementById('sc-m-ai-dur').value,10) || 5;
-  _fData.dailyCptPlan = readDailyAwayPlan();
   patchGistAndPull(document.getElementById('sched-save-btn'), 'sched-status-bar', 'scheduler');
+}
+function saveDailyPlan() {
+  if(!_fData||!_fData._cloudLoaded){setBarStatus('plan-status-bar','❌ Configurazione Firebase non caricata','err');return;}
+  _fData.dailyCptPlan=readDailyAwayPlan();
+  patchGistAndPull(document.getElementById('plan-save-btn'),'plan-status-bar','plan');
 }
 
 /* ══════════════════════════════════════════════════════════════
