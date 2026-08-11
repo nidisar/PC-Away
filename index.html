@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.27</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.28</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -1407,10 +1407,10 @@ function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
     if (scope !== 'filters') return true;
     return fbDbWrite('/pcu_filters/config', 'PATCH', filterConfigSubset(payload));
   }).then(function() {
-    return sendApplyConfigCommands(statusBarId);
+    return applySavedConfigToPcu(scope, configPatch, statusBarId);
   }).then(function() {
     _fData = payload; _fData._cloudLoaded = true; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
-    setBarStatus(statusBarId,'✅ Salvato su Firebase e comando apply inviato a PCU','ok');
+    setBarStatus(statusBarId,scope === 'plan' ? '✅ Planner salvato e applicato: confermato da PCU' : '✅ Salvato su Firebase e comando apply inviato a PCU','ok');
     setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
   }).catch(function(e) {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
@@ -1475,16 +1475,45 @@ function requestPcuHaulViaNtfy() {
   return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-haul' }).then(function(r){ return r.ok; });
 }
 
-function sendApplyConfigCommands(statusBarId) {
-  return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' })
+function sendApplyConfigCommands(statusBarId, scope, configPatch) {
+  var command = scope === 'plan' ? { action:'applyDailyCptPlan', plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
+  return fbDbWrite('/pcu_commands', 'POST', command)
     .catch(function(){ return sendPullFirebaseConfig(statusBarId); });
 }
 function sendPullFirebaseConfig(statusBarId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
-  if (!topic) return Promise.resolve();
+  if (!topic) return Promise.resolve(false);
   var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
   return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'pull-firebase-config' })
-    .then(function(r){ if(!r.ok) throw new Error('ntfy '+r.status); });
+    .then(function(r){ if(!r.ok) throw new Error('ntfy '+r.status); return true; });
+}
+function dailyPlanApplySignature(plan) {
+  var normalized = normalizeDailyAwayPlan(plan || {});
+  return JSON.stringify({ enabled:!!normalized.enabled, events:normalized.events });
+}
+function waitForDailyPlanApplied(expectedPlan, deadline) {
+  return fbDbRead('/pcu_status').then(function(status) {
+    var applied = status && status.config && status.config.dailyCptPlan;
+    if (applied && dailyPlanApplySignature(applied) === dailyPlanApplySignature(expectedPlan)) return status;
+    if (Date.now() >= deadline) throw new Error('PCU non ha confermato il nuovo planner');
+    return new Promise(function(resolve){ setTimeout(resolve, 1200); })
+      .then(function(){ return waitForDailyPlanApplied(expectedPlan, deadline); });
+  });
+}
+function applySavedConfigToPcu(scope, configPatch, statusBarId) {
+  return sendApplyConfigCommands(statusBarId, scope, configPatch).then(function() {
+    if (scope !== 'plan') return true;
+    setBarStatus(statusBarId,'⏳ Salvato su Firebase. Attendo conferma da PCU…','');
+    return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+6000).catch(function() {
+      setBarStatus(statusBarId,'⏳ PCU non ha ancora risposto. Provo il canale ntfy…','');
+      return sendPullFirebaseConfig(statusBarId).then(function(sent) {
+        if (!sent) throw new Error('Planner salvato su Firebase, ma PCU non ha risposto e il topic comandi ntfy non è configurato');
+        return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+10000);
+      });
+    }).catch(function(e) {
+      throw new Error('Planner salvato su Firebase, ma non applicato a PCU: '+(e.message||'nessuna conferma'));
+    });
+  });
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

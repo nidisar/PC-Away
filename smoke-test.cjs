@@ -24,7 +24,9 @@ const required = [
   'applyOptimisticCommandState', "join(',')+'/json?poll=0'", "if(t.key==='cmd')parseBotStato(msg)",
   'function firebaseFetch', 'resetLiveFeedSession();',
   'tab-btn-plan', 'plan-v-canvas', 'DAILY_PLAN_ZOOMS',
-  'schedulerConfigSubset', 'planConfigSubset', 'saveDailyPlan'
+  'schedulerConfigSubset', 'planConfigSubset', 'saveDailyPlan',
+  'dailyPlanApplySignature', 'waitForDailyPlanApplied', 'applySavedConfigToPcu',
+  'Planner salvato e applicato: confermato da PCU', "action:'applyDailyCptPlan'"
 ];
 for (const token of required) {
   if (!html.includes(token)) throw new Error('Contratto mancante: ' + token);
