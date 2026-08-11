@@ -26,7 +26,8 @@ const required = [
   'tab-btn-plan', 'plan-v-canvas', 'DAILY_PLAN_ZOOMS',
   'schedulerConfigSubset', 'planConfigSubset', 'saveDailyPlan',
   'dailyPlanApplySignature', 'waitForDailyPlanApplied', 'applySavedConfigToPcu',
-  'Planner salvato e applicato: confermato da PCU', "action:'applyDailyCptPlan'", "replyTopic:(cfg.topicCmd || '').trim()"
+  'Planner salvato e applicato: confermato da PCU', "action:'applyDailyCptPlan'", "replyTopic:(cfg.topicCmd || '').trim()",
+  "pull-firebase-config planner:", "waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+10000, sent && sent.applyId)"
 ];
 for (const token of required) {
   if (!html.includes(token)) throw new Error('Contratto mancante: ' + token);

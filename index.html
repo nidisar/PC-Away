@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.32</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.33</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -1490,13 +1490,14 @@ function sendApplyConfigCommands(statusBarId, scope, configPatch) {
   var command = scope === 'plan' ? { action:'applyDailyCptPlan', applyId:applyId, replyTopic:(cfg.topicCmd || '').trim(), plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
   return fbDbWrite('/pcu_commands', 'POST', command)
     .then(function(){ return { applyId:applyId }; })
-    .catch(function(){ return sendPullFirebaseConfig(statusBarId).then(function(){ return { applyId:'' }; }); });
+    .catch(function(){ return sendPullFirebaseConfig(statusBarId, applyId).then(function(){ return { applyId:applyId }; }); });
 }
-function sendPullFirebaseConfig(statusBarId) {
+function sendPullFirebaseConfig(statusBarId, plannerApplyId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) return Promise.resolve(false);
   var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
-  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'pull-firebase-config' })
+  var command = plannerApplyId ? ('pull-firebase-config planner:'+plannerApplyId) : 'pull-firebase-config';
+  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:command })
     .then(function(r){ if(!r.ok) throw new Error('ntfy '+r.status); return true; });
 }
 function dailyPlanApplySignature(plan) {
@@ -1534,9 +1535,9 @@ function applySavedConfigToPcu(scope, configPatch, statusBarId) {
     setBarStatus(statusBarId,'⏳ Salvato su Firebase. Attendo conferma da PCU…','');
     return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+6000, sent && sent.applyId).catch(function() {
       setBarStatus(statusBarId,'⏳ PCU non ha ancora risposto. Provo il canale ntfy…','');
-      return sendPullFirebaseConfig(statusBarId).then(function(sent) {
-        if (!sent) throw new Error('Planner salvato su Firebase, ma PCU non ha risposto e il topic comandi ntfy non è configurato');
-        return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+10000);
+      return sendPullFirebaseConfig(statusBarId, sent && sent.applyId).then(function(sentFallback) {
+        if (!sentFallback) throw new Error('Planner salvato su Firebase, ma PCU non ha risposto e il topic comandi ntfy non è configurato');
+        return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+10000, sent && sent.applyId);
       });
     }).catch(function(e) {
       throw new Error('Planner salvato su Firebase, ma non applicato a PCU: '+(e.message||'nessuna conferma'));
