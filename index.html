@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.31</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.32</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -1487,7 +1487,7 @@ function requestPcuHaulViaNtfy() {
 
 function sendApplyConfigCommands(statusBarId, scope, configPatch) {
   var applyId = scope === 'plan' ? ('planner_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)) : '';
-  var command = scope === 'plan' ? { action:'applyDailyCptPlan', applyId:applyId, plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
+  var command = scope === 'plan' ? { action:'applyDailyCptPlan', applyId:applyId, replyTopic:(cfg.topicCmd || '').trim(), plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
   return fbDbWrite('/pcu_commands', 'POST', command)
     .then(function(){ return { applyId:applyId }; })
     .catch(function(){ return sendPullFirebaseConfig(statusBarId).then(function(){ return { applyId:'' }; }); });

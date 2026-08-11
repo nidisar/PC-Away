@@ -1,5 +1,5 @@
-/* PCU Away - Service Worker v1.31 */
-const CACHE = 'pcu-away-v31';
+/* PCU Away - Service Worker v1.32 */
+const CACHE = 'pcu-away-v32';
 /* Path base dinamico — funziona sia su localhost che su GitHub Pages /PC-Away/ */
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
