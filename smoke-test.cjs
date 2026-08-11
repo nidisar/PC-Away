@@ -52,6 +52,16 @@ if (!html.includes("DAILY_PLAN_ZOOMS=[0.5,0.75,1,1.5,2,3,4,5]")) throw new Error
 if (!html.includes("status.plannerApplyId === applyId")) throw new Error('Conferma Plan deve usare l’ID restituito da PCU');
 if (!html.includes("'/pcu_command_results/'+applyId")) throw new Error('Conferma Plan deve leggere il risultato dedicato');
 if (!html.includes("target:minute,from:minute")) throw new Error('Assault deve conservare il target durante il tap');
+if (!html.includes('capturePlannerNtfyResult')) throw new Error('Away deve intercettare la conferma planner ntfy');
+if (!html.includes('PCU_PLANNER_APPLIED:')) throw new Error('Protocollo ntfy planner mancante');
+
+const ntfyAckStart = match[1].indexOf('var _plannerNtfyResults');
+const ntfyAckEnd = match[1].indexOf('function isTechnicalFeedMessage', ntfyAckStart);
+if (ntfyAckStart < 0 || ntfyAckEnd <= ntfyAckStart) throw new Error('Parser conferma planner ntfy non trovato');
+const ntfyAckSandbox = {};
+vm.runInNewContext(match[1].slice(ntfyAckStart, ntfyAckEnd) + '\nthis.captureAck=capturePlannerNtfyResult;this.acks=_plannerNtfyResults;', ntfyAckSandbox);
+if (!ntfyAckSandbox.captureAck({ message:'PCU_PLANNER_APPLIED:planner_test_123 — Ho aggiornato il planner' })) throw new Error('Ack planner ntfy non riconosciuto');
+if (!ntfyAckSandbox.acks.planner_test_123 || ntfyAckSandbox.acks.planner_test_123.ok !== true) throw new Error('Ack planner ntfy non memorizzato');
 if (!html.includes("loadHaul(true,false)")) throw new Error('Haul deve caricare subito senza attesa push');
 
 const schedulerPanel = html.slice(html.indexOf('id="tab-scheduler"'), html.indexOf('id="tab-plan"'));

@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.30</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.31</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -918,6 +918,7 @@ function startSSE() {
               try{
                 var msg=JSON.parse(line); if(msg.event!=='message')return;
                 var t=byId[msg.topic] || (topics.length===1?topics[0]:null); if(!t)return;
+                if(t.key==='cmd')capturePlannerNtfyResult(msg);
                 addFeedItem(msg,t.key,t.label);
                 parseHaulFromText(msg.message||'');
                 if(t.key==='cmd')parseBotStato(msg);
@@ -953,6 +954,15 @@ function setFeedBootstrapState() {
 var _feedSeen = {};
 var _orderActions = {};
 var _pendingOrders = {};
+var _plannerNtfyResults = {};
+function capturePlannerNtfyResult(msg) {
+  var text = String(msg && (msg.message || msg.body) || '');
+  var ok = text.match(/PCU_PLANNER_APPLIED:([a-zA-Z0-9_-]+)/);
+  if (ok) { _plannerNtfyResults[ok[1]] = { ok:true, receivedAt:Date.now() }; return true; }
+  var failed = text.match(/PCU_PLANNER_FAILED:([a-zA-Z0-9_-]+):?(.*)/);
+  if (failed) { _plannerNtfyResults[failed[1]] = { ok:false, error:failed[2] || 'PCU non ha aggiornato il planner', receivedAt:Date.now() }; return true; }
+  return false;
+}
 function isTechnicalFeedMessage(msg, qKey) {
   if (qKey !== 'cmd') return false;
   var text = ((msg && msg.title) || '') + ' ' + ((msg && (msg.message || msg.body)) || '');
@@ -1495,6 +1505,12 @@ function dailyPlanApplySignature(plan) {
   return JSON.stringify({ enabled:!!normalized.enabled, events:events });
 }
 function waitForDailyPlanApplied(expectedPlan, deadline, applyId) {
+  var ntfyResult = applyId && _plannerNtfyResults[applyId];
+  if (ntfyResult) {
+    delete _plannerNtfyResults[applyId];
+    if (ntfyResult.ok) return Promise.resolve({ plannerApplyId:applyId, confirmed:true, channel:'ntfy' });
+    return Promise.reject(new Error(ntfyResult.error || 'PCU non ha aggiornato il planner'));
+  }
   var resultRead = applyId ? fbDbRead('/pcu_command_results/'+applyId).catch(function(){ return null; }) : Promise.resolve(null);
   return resultRead.then(function(result) {
     if (result && result.ok === true) {
