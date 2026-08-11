@@ -286,7 +286,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.23</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.24</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -301,9 +301,9 @@
 
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
-    <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this)">               <span class="ticon">🎮</span>Bot</button>
+    <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this);refreshLivePcuStatus()"><span class="ticon">🎮</span>Bot</button>
     <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);refreshCfgFromPcu()"><span class="ticon">⏰</span>Sched</button>
-    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);refreshCfgFromPcu()"> <span class="ticon">🎯</span>Filtri</button>
+    <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
     <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true,true)">     <span class="ticon">📦</span>Haul</button>
     <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
@@ -609,8 +609,6 @@ var VAPID_KEY  = 'BEMjM0sNxh41x0a6Lz3YaqkJ7AUhZefxsOQgw-at69i0fM1CybVBcj7-QQXf4N
 var STORE_KEY  = 'pcaway_config';
 var PWD_KEY    = 'pcaway_pwd';
 var MAX_FEED   = 60;
-var FEED_SEEN_KEY = 'pcaway_feed_seen_v2';
-var FEED_BOOTSTRAP_LIMIT = 12;
 var GIST_CONFIG_FILE = 'uvcomp_config.json';
 var GIST_HAUL_FILE   = 'uvcomp_haul.json'; // legacy only
 var FB_API_KEY  = 'AIzaSyBjQ-Ev2RdlimCKg6nl6Wxu3bCGtdiELnY';
@@ -618,7 +616,6 @@ var FB_DB_URL   = 'https://phantom-core-cf159-default-rtdb.europe-west1.firebase
 var DROPS_PAGE  = 80;
 var HAUL_PAGE   = 60;
 var MONITOR_PAGE = 80;
-var SSEID_KEY   = 'pcaway_sseid';
 
 /* ── Config ── */
 var cfg = { token:'', topicCpt:'', topicDpt:'', topicAa:'', topicCmd:'',
@@ -645,26 +642,23 @@ function showApp() { loadCfg(); document.getElementById('login-screen').style.di
 /* ── Init ── */
 function initApp() {
   loadSettingsToForm(); updatePushStatusBar(); initializeCommandStates();
-  loadSseIds(); loadFeedSeen(); refreshStartupData(true);
+  resetLiveFeedSession(); refreshStartupData(true);
   registerSW(); listenSWMessages();
   document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'visible') refreshStartupData(false);
+    else stopSSE();
   });
 }
 
 var _lastStatusRequestAt = 0;
 function refreshStartupData(initial) {
-  if (initial) preloadNtfyHistory().finally(startSSE);
-  else startSSE();
+  startSSE(true);
+  if (!initial) return;
   loadPcuStatus();
   if (Date.now() - _lastStatusRequestAt > 15000) {
     _lastStatusRequestAt = Date.now();
-    requestPcuStatus(true).then(function(){
-      setTimeout(loadPcuStatus, 2500);
-      setTimeout(loadPcuStatus, 6000);
-    }).catch(function(){});
+    refreshLivePcuStatus(true).catch(function(){});
   }
-  if (initial) loadDrops();
 }
 
 function configuredTopics() {
@@ -714,12 +708,7 @@ var _lastFreshStatusHaulAt = 0;
 
 function loadPcuStatus() {
   if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(null);
-  return fbGetToken().then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_status.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' });
-  }).then(function(r) {
-    if (!r.ok) throw new Error('Firebase status: HTTP '+r.status);
-    return r.json();
-  }).then(function(status) {
+  return fbDbRead('/pcu_status').then(function(status) {
     if (status && status.haul && isFreshStatus(status)) {
       updateHaulFromStatus(status.haul);
       applyPcuStatusToBot(status);
@@ -758,7 +747,7 @@ function loadHaulFromMonitorLog() {
   return fbGetToken().then(function(token) {
     var days = [monitorDayKey(0), monitorDayKey(1), monitorDayKey(2)];
     return Promise.all(days.map(function(day) {
-      return fetch(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token)
+      return fetchWithTimeout(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token, {}, 10000)
         .then(function(r){ if(!r.ok) throw new Error('Firebase Monitor: HTTP '+r.status); return r.json(); })
         .then(function(data){ return data || {}; })
         .catch(function(){ return {}; });
@@ -833,14 +822,26 @@ function loadHaulSummary() {
    SSE — Feed
    ══════════════════════════════════════════════════════════════ */
 var _sseAborts = [];
-var _sseLastId = {};
+var _feedSessionStartedSec = 0;
 
-function saveSseIds() { try { localStorage.setItem(SSEID_KEY, JSON.stringify(_sseLastId)); } catch(e) {} }
-function loadSseIds() { try { var s = localStorage.getItem(SSEID_KEY); if (s) _sseLastId = JSON.parse(s); } catch(e) {} }
+function resetLiveFeedSession() {
+  /* ntfy usa secondi interi: il secondo successivo evita anche un messaggio
+     pubblicato pochi millisecondi prima dell'apertura. */
+  _feedSessionStartedSec = Math.floor(Date.now() / 1000) + 1;
+  _feedSeen = {};
+  _orderActions = {};
+  _pendingOrders = {};
+}
 
-function stopSSE() { _sseAborts.forEach(function(ac){ try{ac.abort();}catch(e){} }); _sseAborts = []; setConnDot('off'); }
+function stopSSE() {
+  _sseAborts.forEach(function(ac){ try{ ac.abort(); }catch(e){} });
+  _sseAborts = [];
+  setConnDot('off');
+}
 
-function startSSE() {
+/* Feed esclusivamente live. Poll brevi affidabili anche sulle PWA mobili:
+   il cursore nasce in questa sessione e non viene mai salvato. */
+function startSSE(freshConnection) {
   stopSSE();
   setFeedBootstrapState();
   var topics = configuredTopics();
@@ -848,44 +849,34 @@ function startSSE() {
   var okCount = 0;
   topics.forEach(function(t) {
     var ac = new AbortController(); _sseAborts.push(ac);
-    (function connect(delay) {
+    var cursor = String(Math.max(_feedSessionStartedSec, Math.floor(Date.now()/1000)+1));
+    (function poll(delay) {
       if (ac.signal.aborted) return;
       setTimeout(function() {
-        if (ac.signal.aborted) return;
-        var lastId = _sseLastId[t.id];
-        var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=0' + (lastId ? '&since=' + encodeURIComponent(lastId) : '');
+        if (ac.signal.aborted || document.visibilityState === 'hidden') return;
+        var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=1&since=' + encodeURIComponent(cursor);
         var headers = {}; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
-        fetch(url, { signal: ac.signal, headers: headers })
+        fetch(url, { signal:ac.signal, headers:headers, cache:'no-store' })
           .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
-            okCount++; if (okCount >= topics.length) setConnDot('green');
-            var reader = res.body.getReader(); var dec = new TextDecoder(); var buffer = '';
-            function pump() {
-              reader.read().then(function(chunk) {
-                if (chunk.done) { okCount = Math.max(0, okCount-1); if (!okCount) setConnDot('red'); if (!ac.signal.aborted) connect(5000); return; }
-                buffer += dec.decode(chunk.value, { stream:true });
-                var lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-                lines.forEach(function(line) {
-                  line = line.trim(); if (!line) return;
-                  try {
-                    var msg = JSON.parse(line);
-                    if (msg.id) { _sseLastId[t.id] = msg.id; saveSseIds(); }
-                    if (msg.event === 'message') {
-                      addFeedItem(msg, t.key, t.label);
-                      /* aggiorna haul bar da qualsiasi canale */
-                      parseHaulFromText(msg.message || '');
-                      if (t.key === 'cmd') parseHaulFromText(msg.message || '');
-                    }
-                  } catch(e) {}
-                });
-                pump();
-              }).catch(function() { okCount = Math.max(0,okCount-1); if(!okCount) setConnDot('red'); if(!ac.signal.aborted) connect(5000); });
-            }
-            pump();
-          })
-          .catch(function() { if (!ac.signal.aborted) connect(Math.min((delay||1000)*2, 30000)); });
-      }, delay || 0);
+            if (!okCount) setConnDot('green'); okCount=1;
+            return res.text();
+          }).then(function(text) {
+            var newestId='';
+            String(text||'').split('\n').forEach(function(line) {
+              line=line.trim(); if(!line)return;
+              try {
+                var msg=JSON.parse(line);
+                if (msg.id) newestId=msg.id;
+                if (msg.event!=='message' || Number(msg.time||0)<_feedSessionStartedSec) return;
+                addFeedItem(msg,t.key,t.label);
+                parseHaulFromText(msg.message||'');
+              } catch(e) {}
+            });
+            if (newestId) cursor=newestId;
+            if(!ac.signal.aborted)poll(3000);
+          }).catch(function(){ if(!ac.signal.aborted){ setConnDot('red'); poll(Math.min((delay||1500)*2,15000)); } });
+      }, delay||0);
     }(0));
   });
 }
@@ -904,63 +895,13 @@ function setFeedBootstrapState() {
     empty.textContent = 'Configura i topic nelle Impostazioni.';
   } else if (!document.querySelector('#feed-list .feed-item')) {
     empty.style.display = '';
-    empty.textContent = 'Caricamento feed...';
+    empty.textContent = 'In attesa di nuove notifiche...';
   }
-}
-
-function preloadNtfyHistory() {
-  var topics = configuredTopics();
-  if (!topics.length) return Promise.resolve([]);
-  var headers = {}; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
-  return Promise.all(topics.map(function(t) {
-    var lastId = _sseLastId[t.id];
-    var since = lastId ? encodeURIComponent(lastId) : '10m';
-    var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=1&since=' + since;
-    return fetch(url, { headers: headers })
-      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
-      .then(function(text) {
-        return text.split('\n').map(function(line){ line=line.trim(); if(!line) return null; try { return JSON.parse(line); } catch(e) { return null; } })
-          .filter(function(msg){ return msg && msg.event === 'message'; })
-          .slice(-(lastId ? FEED_BOOTSTRAP_LIMIT : 3))
-          .map(function(msg){ return { msg: msg, topic: t }; });
-      }).catch(function(){ return []; });
-  })).then(function(groups) {
-    var items = []; var hasCmdState = false;
-    groups.forEach(function(g){ items = items.concat(g); });
-    items.sort(function(a,b){ return (a.msg.time||0) - (b.msg.time||0); });
-    if (items.length > FEED_BOOTSTRAP_LIMIT) items = items.slice(-FEED_BOOTSTRAP_LIMIT);
-    items.forEach(function(item) {
-      addFeedItem(item.msg, item.topic.key, item.topic.label, true);
-      if (item.msg.id) _sseLastId[item.topic.id] = item.msg.id;
-      parseHaulFromText(item.msg.message || '');
-      if (item.topic.key === 'cmd') { hasCmdState = true; parseHaulFromText(item.msg.message || ''); }
-    });
-    var empty = document.getElementById('feed-empty');
-    if (empty && !items.length && !document.querySelector('#feed-list .feed-item')) {
-      empty.style.display = '';
-      empty.textContent = 'Nessun messaggio recente.';
-    }
-    var cf = document.getElementById('cmd-feedback');
-    if (cf && !hasCmdState && cf.textContent.indexOf('caricamento') !== -1) {
-      cf.style.color='var(--text2)'; cf.textContent='Nessuno stato bot recente.';
-    }
-    saveSseIds();
-    return items;
-  });
 }
 
 var _feedSeen = {};
 var _orderActions = {};
 var _pendingOrders = {};
-function loadFeedSeen() {
-  try {
-    var rows = JSON.parse(localStorage.getItem(FEED_SEEN_KEY) || '[]');
-    (Array.isArray(rows) ? rows : []).forEach(function(id){ _feedSeen[id] = true; });
-  } catch(e) { _feedSeen = {}; }
-}
-function saveFeedSeen() {
-  try { localStorage.setItem(FEED_SEEN_KEY, JSON.stringify(Object.keys(_feedSeen).slice(-300))); } catch(e) {}
-}
 function isTechnicalFeedMessage(msg, qKey) {
   if (qKey !== 'cmd') return false;
   var text = ((msg && msg.title) || '') + ' ' + ((msg && (msg.message || msg.body)) || '');
@@ -972,7 +913,6 @@ function addFeedItem(msg, qKey, qLabel, silent) {
   var feedKey = msg.id || ((msg.time||'') + ':' + qKey + ':' + (msg.title||'') + ':' + (msg.message||''));
   if (_feedSeen[feedKey]) return;
   _feedSeen[feedKey] = true;
-  saveFeedSeen();
   var list = document.getElementById('feed-list'); var empty = document.getElementById('feed-empty');
   if (empty) empty.style.display = 'none';
   var t = new Date((msg.time || (Date.now()/1000)) * 1000);
@@ -1085,9 +1025,8 @@ function initializeCommandStates() {
     btn.classList.remove('state-on');
     btn.classList.add('state-off');
   });
-  setActiveMode('presidio');
   var el = document.getElementById('cmd-feedback');
-  if (el) { el.style.color='var(--text2)'; el.textContent='Stato bot in caricamento dallo storico...'; }
+  if (el) { el.style.color='var(--text2)'; el.textContent='Apri Bot per leggere lo stato live di PCU.'; }
 }
 
 // Evidenzia in modo esclusivo il bottone del modo hide attivo
@@ -1106,9 +1045,16 @@ function sendCmd(cmd) {
   // Stato Bot live-only: nessun toggle ottimistico locale.
   // Dopo il comando chiediamo a PCU lo stato reale e aggiorniamo i pulsanti da /pcu_status.
   var headers = { 'Content-Type': 'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
-  fetch(NTFY_BASE + '/' + topic, { method:'POST', headers:headers, body:cmd })
-    .then(function(r){ if(r.ok) { showCmdFeedback('✅ "'+cmd+'" inviato',false); setTimeout(function(){ requestPcuStatus(true).then(function(){ setTimeout(loadPcuStatus, 900); }); }, 500); } else showCmdFeedback('❌ HTTP '+r.status,true); })
-    .catch(function(e){ showCmdFeedback('❌ '+e.message,true); });
+  showCmdFeedback('⏳ Invio "'+cmd+'" a PCU...',false);
+  fetchWithTimeout(NTFY_BASE + '/' + topic, { method:'POST', headers:headers, body:cmd }, 8000)
+    .then(function(r){
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      showCmdFeedback('⏳ "'+cmd+'" inviato: attendo conferma live da PCU...',false);
+      return new Promise(function(resolve){ setTimeout(resolve, 1200); });
+    })
+    .then(function(){ return refreshLivePcuStatus(true); })
+    .then(function(){ showCmdFeedback('✅ PCU ha confermato lo stato aggiornato',false); })
+    .catch(function(e){ showCmdFeedback('❌ '+(e.message||'Comando non confermato'),true); });
 }
 
 function setBtnTextByKey(key, text) {
@@ -1283,14 +1229,17 @@ function loadCfgCloud(force) {
   _cfgLoading = true;
   ['sched','filters'].forEach(function(ns){ showNs(ns,'loading'); });
   Promise.all([
-    fbDbRead('/pcu_status').catch(function(){ return null; }),
-    fbDbRead('/pcu_config/current').catch(function(){ return null; }),
-    fbDbRead('/pcu_filters/config').catch(function(){ return null; })
+    fbDbRead('/pcu_status'),
+    fbDbRead('/pcu_config/current'),
+    fbDbRead('/pcu_filters/config')
   ]).then(function(pair) {
     var status = pair[0] || {};
     var remoteCfg = pair[1] || {};
     var liveCfg = status && isFreshStatus(status) && status.config ? status.config : null;
     var filters = pair[2] || {};
+    if (!Object.keys(remoteCfg).length && !Object.keys(filters).length && !(status && status.config)) {
+      throw new Error('Configurazione PCU non disponibile su Firebase');
+    }
     var data = Object.assign({}, remoteCfg || {}, liveCfg || {});
     if (!liveCfg && filters && Object.keys(filters).length) {
       data.etv = filters.etv || data.etv;
@@ -1304,9 +1253,10 @@ function loadCfgCloud(force) {
       data.updatedAt = Math.max(Number(data.updatedAt || 0), Number(filters.updatedAt || 0)) || Date.now();
     }
     data._pcuLiveConfig = !!liveCfg;
+    data._cloudLoaded = true;
     return data;
   }).then(function(data) {
-    _fData = normalizeRemoteConfig(data); _fData._pcuLiveConfig = !!data._pcuLiveConfig; _fDirty = false; _cfgLoading = false;
+    _fData = normalizeRemoteConfig(data); _fData._pcuLiveConfig = !!data._pcuLiveConfig; _fData._cloudLoaded = true; _fDirty = false; _cfgLoading = false;
     if (_fData._pcuLiveConfig) { showNs('sched','body'); populateSchedulerForm(); }
     else {
       var el = document.getElementById('sched-not-configured');
@@ -1344,9 +1294,9 @@ function fbTokenMaybe() {
   return fbGetToken().catch(function(){ return null; });
 }
 function fbDbRequest(path, options) {
-  options = options || {};
+  options = Object.assign({ cache:'no-store' }, options || {});
   return fbGetToken().then(function(token) {
-    return fetch(fbDbUrl(path, token), options).then(function(r) {
+    return fetchWithTimeout(fbDbUrl(path, token), options, 10000).then(function(r) {
       if (r.ok) return r;
       throw new Error('Firebase DB ' + path + ': HTTP ' + r.status);
     });
@@ -1365,9 +1315,14 @@ function fbDbWrite(path, method, payload) {
 function patchGistAndPull(saveBtn, statusBarId, scope) { return patchFirebaseAndPull(saveBtn, statusBarId, scope); } // legacy alias
 
 function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
+  if (!_fData || !_fData._cloudLoaded) {
+    setBarStatus(statusBarId,'❌ Configurazione Firebase non caricata: salvataggio bloccato','err');
+    return;
+  }
   saveBtn.disabled = true; saveBtn.textContent = '⏳ Salvataggio…'; setBarStatus(statusBarId,'');
   var payload = normalizeRemoteConfig(_fData);
   delete payload._pcuLiveConfig;
+  delete payload._cloudLoaded;
   payload.updatedAt = Date.now(); payload.schema = 'pcu_config_v1'; payload.source = 'pcu-away';
   var configPatch = scope === 'filters' ? filterConfigSubset(payload) : payload;
   configPatch.updatedAt = payload.updatedAt; configPatch.schema = 'pcu_config_v1'; configPatch.source = 'pcu-away';
@@ -1377,7 +1332,7 @@ function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
   }).then(function() {
     return sendApplyConfigCommands(statusBarId);
   }).then(function() {
-    _fData = payload; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
+    _fData = payload; _fData._cloudLoaded = true; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
     setBarStatus(statusBarId,'✅ Salvato su Firebase e comando apply inviato a PCU','ok');
     setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
   }).catch(function(e) {
@@ -1397,10 +1352,41 @@ function requestPcuStatusViaNtfy() {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) return Promise.resolve(false);
   var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
-  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-status' }).then(function(r){ return r.ok; });
+  return fetchWithTimeout(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-status' }, 8000).then(function(r){ return r.ok; });
+}
+function waitForFreshPcuStatus(requestedAt, deadline) {
+  return fbDbRead('/pcu_status').then(function(status) {
+    if (status && Number(status.lastUpdate||0) >= requestedAt - 1000) {
+      applyPcuStatusToBot(status);
+      if (status.haul) updateHaulFromStatus(status.haul);
+      return status;
+    }
+    if (Date.now() >= deadline) throw new Error('PCU non ha risposto entro 12 secondi');
+    return new Promise(function(resolve){ setTimeout(resolve, 1500); })
+      .then(function(){ return waitForFreshPcuStatus(requestedAt, deadline); });
+  });
+}
+function refreshLivePcuStatus(silent) {
+  var requestedAt = Date.now();
+  if (!silent) showCmdFeedback('⏳ Richiesta stato live a PCU...', false);
+  return requestPcuStatus(true).then(function(ok) {
+    if (ok === false) throw new Error('Canale comandi PCU non disponibile');
+    return waitForFreshPcuStatus(requestedAt, Date.now()+12000);
+  }).then(function(status) {
+    if (!silent) showCmdFeedback('✅ Stato live PCU aggiornato', false);
+    return status;
+  }).catch(function(e) {
+    if (!silent) showCmdFeedback('❌ '+(e.message||'PCU non raggiungibile'), true);
+    throw e;
+  });
 }
 function refreshCfgFromPcu() {
-  requestPcuStatus(true).then(function(){ setTimeout(function(){ loadCfgCloud(true); }, 900); });
+  ['sched'].forEach(function(ns){ showNs(ns,'loading'); });
+  refreshLivePcuStatus(true).then(function(){ loadCfgCloud(true); }).catch(function(e){
+    var el=document.getElementById('sched-not-configured');
+    if(el) el.textContent='❌ '+(e.message||'PCU non raggiungibile');
+    showNs('sched','not-configured');
+  });
   return false;
 }
 function requestPcuHaulPush() {
@@ -1747,21 +1733,42 @@ function collectFilterData() {
   _fData.advancedRules.rules = sortRules(_fData.advancedRules.rules || []);
 }
 
-function saveFilters() { if (!_fData) return; collectFilterData(); patchGistAndPull(document.getElementById('f-save-btn'),'f-status-bar','filters'); }
+function saveFilters() {
+  if (!_fData || !_fData._cloudLoaded) {
+    setBarStatus('f-status-bar','❌ Dati Firebase non caricati: nessuna modifica inviata','err');
+    return;
+  }
+  collectFilterData(); patchGistAndPull(document.getElementById('f-save-btn'),'f-status-bar','filters');
+}
 
 /* ══════════════════════════════════════════════════════════════
    FIREBASE — Drops
    ══════════════════════════════════════════════════════════════ */
-var _fbToken=null; var _fbExpiry=0; var _allDrops=[]; var _dropsPage=0; var _dropsFilter='';
+var _fbToken=null; var _fbExpiry=0; var _fbAuthPromise=null; var _allDrops=[]; var _dropsPage=0; var _dropsFilter='';
+
+function fetchWithTimeout(url, options, timeoutMs) {
+  var ac = new AbortController();
+  var opts = Object.assign({}, options || {}, { signal:ac.signal });
+  var timer = setTimeout(function(){ ac.abort(); }, timeoutMs || 10000);
+  return fetch(url, opts).catch(function(e) {
+    if (e && e.name === 'AbortError') throw new Error('Connessione scaduta: riprova');
+    throw e;
+  }).finally(function(){ clearTimeout(timer); });
+}
 
 function fbGetToken() {
   if (_fbToken && Date.now() < _fbExpiry) return Promise.resolve(_fbToken);
   if (!cfg.fbEmail || !cfg.fbPassword) return Promise.reject(new Error('Credenziali Firebase mancanti nelle Impostazioni'));
-  return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_API_KEY, {
+  if (_fbAuthPromise) return _fbAuthPromise;
+  _fbAuthPromise = fetchWithTimeout('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_API_KEY, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email:cfg.fbEmail, password:cfg.fbPassword, returnSecureToken:true })
-  }).then(function(r){ if(!r.ok) throw new Error('Firebase auth: HTTP '+r.status); return r.json(); })
-    .then(function(d){ _fbToken=d.idToken; _fbExpiry=Date.now()+55*60*1000; return _fbToken; });
+  }, 10000).then(function(r){
+    if(!r.ok) return r.json().catch(function(){return {};}).then(function(d){ throw new Error('Firebase auth: '+(d.error&&d.error.message||('HTTP '+r.status))); });
+    return r.json();
+  }).then(function(d){ _fbToken=d.idToken; _fbExpiry=Date.now()+55*60*1000; return _fbToken; })
+    .finally(function(){ _fbAuthPromise=null; });
+  return _fbAuthPromise;
 }
 
 function loadDrops(more) {
@@ -1790,7 +1797,7 @@ function loadDrops(more) {
   });
 }
 function loadDropsFromFirebasePath(token, path) {
-  return fetch(FB_DB_URL+path+'.json?auth='+token)
+  return fetchWithTimeout(FB_DB_URL+path+'.json?auth='+token, {}, 10000)
     .then(function(r){ if(!r.ok) throw new Error('Firebase DB '+path+': HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
@@ -1854,7 +1861,7 @@ function loadHaul(force, requestFresh) {
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
   var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 7000); }); }) : Promise.resolve();
   pre.then(function(){ return fbGetToken(); }).then(function(token) {
-    return fetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' });
+    return fetchWithTimeout(FB_DB_URL+'/pcu_haul/orders.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' }, 10000);
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
@@ -1865,7 +1872,11 @@ function loadHaul(force, requestFresh) {
       loadPcuStatus();
       setBarStatus('haul-status-bar','OK Haul caricato da Firebase PCU ('+rows.length+' ordini)','ok');
     })
-    .catch(function(e){ setBarStatus('haul-status-bar','Errore: '+(e.message||'Errore'),'err'); showHaulState('body'); });
+    .catch(function(e){
+      setBarStatus('haul-status-bar','Errore: '+(e.message||'Errore'),'err');
+      document.getElementById('haul-list').innerHTML='<div class="not-configured">❌ Impossibile caricare Haul. Controlla connessione e credenziali Firebase.</div>';
+      showHaulState('body');
+    });
 }
 
 function showHaulState(s) {
@@ -1944,7 +1955,7 @@ function loadMonitor(more) {
   fbGetToken().then(function(token) {
     var days = [monitorDayKey(0), monitorDayKey(1), monitorDayKey(2)];
     return Promise.all(days.map(function(day) {
-      return fetch(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token)
+      return fetchWithTimeout(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token, {}, 10000)
         .then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
         .then(function(data){ return { day: day, data: data || {} }; });
     }));
@@ -1965,7 +1976,11 @@ function loadMonitor(more) {
     updateHaulFromMonitorRows(_monitorRows);
     _monitorPage=0; showMonitorState('body'); document.getElementById('monitor-list').innerHTML=''; renderMonitorPage();
     setBarStatus('monitor-status-bar','OK Monitor caricato da Firebase PCU ('+_monitorRows.length+' eventi, ultimi 3 giorni)','ok');
-  }).catch(function(e){ setBarStatus('monitor-status-bar','Errore: '+(e.message||'Errore'),'err'); showMonitorState('body'); });
+  }).catch(function(e){
+    setBarStatus('monitor-status-bar','Errore: '+(e.message||'Errore'),'err');
+    document.getElementById('monitor-list').innerHTML='<div class="not-configured">❌ Impossibile caricare Monitor. Controlla connessione e credenziali Firebase.</div>';
+    showMonitorState('body');
+  });
 }
 
 function showMonitorState(s) {

@@ -17,17 +17,27 @@ const missing = Array.from(new Set(fixedRefs.filter(id => !ids.has(id) && !optio
 if (missing.length) throw new Error('ID DOM mancanti: ' + missing.join(', '));
 
 const required = [
-  'FEED_BOOTSTRAP_LIMIT', 'manualByQueue', 'queueFilter', 'waitMissingEtv',
+  'resetLiveFeedSession', 'manualByQueue', 'queueFilter', 'waitMissingEtv',
   'backstab_window', 'hotspot', 'Attendo PCU', "'PATCH', configPatch",
-  '/pcu_v2/confirmed_orders.json', "row.origin === 'remote_ntfy'"
+  '/pcu_v2/confirmed_orders.json', "row.origin === 'remote_ntfy'",
+  '_fbAuthPromise', 'fetchWithTimeout', 'waitForFreshPcuStatus', '_cloudLoaded'
 ];
 for (const token of required) {
   if (!html.includes(token)) throw new Error('Contratto mancante: ' + token);
 }
-const forbidden = ['since=12h', "fbDbUrl(path, null)", '6 * 60 * 60 * 1000'];
+const forbidden = [
+  'preloadNtfyHistory', 'FEED_BOOTSTRAP_LIMIT', 'SSEID_KEY', 'loadFeedSeen',
+  'saveFeedSeen', 'since=10m', "fbDbUrl(path, null)", '6 * 60 * 60 * 1000',
+  'Stato bot in caricamento dallo storico'
+];
 for (const token of forbidden) {
   if (html.includes(token)) throw new Error('Codice obsoleto ancora presente: ' + token);
 }
+
+const startupBlock = match[1].slice(match[1].indexOf('function refreshStartupData'), match[1].indexOf('function configuredTopics'));
+if (startupBlock.includes('loadDrops(')) throw new Error('Drops non deve caricarsi automaticamente all\'avvio');
+const commandInitBlock = match[1].slice(match[1].indexOf('function initializeCommandStates'), match[1].indexOf('function setActiveMode'));
+if (commandInitBlock.includes('setActiveMode(')) throw new Error('Il Bot non deve inventare un modo iniziale');
 
 const plannerStart = match[1].indexOf('function dailyAwayPad2');
 const plannerEnd = match[1].indexOf('function readDailyAwayPlan');
