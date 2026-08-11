@@ -198,7 +198,7 @@
     .plan-v-event.selected .plan-v-handle { display:block; }
     .plan-v-guide { position:absolute; left:0; right:0; height:1px; background:rgba(255,255,255,.85); box-shadow:0 0 7px #fff; z-index:12; pointer-events:none; display:none; }
     .plan-v-guide span { position:absolute; left:3px; top:-10px; padding:2px 4px; border-radius:4px; background:#080c12; color:#fff; font:800 9px ui-monospace,monospace; }
-    .plan-selected { display:none; margin-top:10px; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg2); }
+    .plan-selected { display:none; position:sticky; top:0; z-index:60; margin:0 0 10px; padding:10px; border:1px solid var(--border); border-radius:10px; background:#141b24; box-shadow:0 8px 18px rgba(0,0,0,.55); }
     .plan-selected.visible { display:block; }
     .plan-selected-title { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:9px; font-size:12px; font-weight:800; }
     .plan-selected-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.28</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.29</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -487,6 +487,7 @@
       <div id="plan-loading" class="not-configured" style="display:none">⏳ Caricamento planner…</div>
       <div id="plan-body" style="display:none">
         <div id="plan-status-bar"></div>
+        <div class="plan-selected" id="plan-selected"></div>
         <div class="f-section-header">
           <div><div class="section-title">📅 Planner Giornaliero CPT</div><div class="f-hint" id="sc-daily-state">Stato gestito dal tab Bot</div></div>
           <label class="f-toggle" title="Abilita pianificazione giornaliera"><input type="checkbox" id="sc-daily-enabled" onchange="dailyPlanMarkDirty()"><div class="f-toggle-track"></div></label>
@@ -521,7 +522,6 @@
             </div>
           </div>
         </div>
-        <div class="plan-selected" id="plan-selected"></div>
         <div class="plan-event-list" id="sc-daily-events"></div>
         <div class="plan-save-dock"><button class="f-save-btn" id="plan-save-btn" onclick="saveDailyPlan()">💾 Salva Plan e applica a PCU</button></div>
         <button class="f-reload-btn" onclick="loadCfgCloud(true)">↺ Ricarica Plan da Firebase</button>
@@ -1476,9 +1476,11 @@ function requestPcuHaulViaNtfy() {
 }
 
 function sendApplyConfigCommands(statusBarId, scope, configPatch) {
-  var command = scope === 'plan' ? { action:'applyDailyCptPlan', plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
+  var applyId = scope === 'plan' ? ('planner_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)) : '';
+  var command = scope === 'plan' ? { action:'applyDailyCptPlan', applyId:applyId, plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
   return fbDbWrite('/pcu_commands', 'POST', command)
-    .catch(function(){ return sendPullFirebaseConfig(statusBarId); });
+    .then(function(){ return { applyId:applyId }; })
+    .catch(function(){ return sendPullFirebaseConfig(statusBarId).then(function(){ return { applyId:'' }; }); });
 }
 function sendPullFirebaseConfig(statusBarId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
@@ -1489,22 +1491,24 @@ function sendPullFirebaseConfig(statusBarId) {
 }
 function dailyPlanApplySignature(plan) {
   var normalized = normalizeDailyAwayPlan(plan || {});
-  return JSON.stringify({ enabled:!!normalized.enabled, events:normalized.events });
+  var events = normalized.events.slice().sort(function(a,b){ return JSON.stringify(a).localeCompare(JSON.stringify(b)); });
+  return JSON.stringify({ enabled:!!normalized.enabled, events:events });
 }
-function waitForDailyPlanApplied(expectedPlan, deadline) {
+function waitForDailyPlanApplied(expectedPlan, deadline, applyId) {
   return fbDbRead('/pcu_status').then(function(status) {
     var applied = status && status.config && status.config.dailyCptPlan;
+    if (applyId && status && status.plannerApplyId === applyId) return status;
     if (applied && dailyPlanApplySignature(applied) === dailyPlanApplySignature(expectedPlan)) return status;
     if (Date.now() >= deadline) throw new Error('PCU non ha confermato il nuovo planner');
     return new Promise(function(resolve){ setTimeout(resolve, 1200); })
-      .then(function(){ return waitForDailyPlanApplied(expectedPlan, deadline); });
+      .then(function(){ return waitForDailyPlanApplied(expectedPlan, deadline, applyId); });
   });
 }
 function applySavedConfigToPcu(scope, configPatch, statusBarId) {
-  return sendApplyConfigCommands(statusBarId, scope, configPatch).then(function() {
+  return sendApplyConfigCommands(statusBarId, scope, configPatch).then(function(sent) {
     if (scope !== 'plan') return true;
     setBarStatus(statusBarId,'⏳ Salvato su Firebase. Attendo conferma da PCU…','');
-    return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+6000).catch(function() {
+    return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+6000, sent && sent.applyId).catch(function() {
       setBarStatus(statusBarId,'⏳ PCU non ha ancora risposto. Provo il canale ntfy…','');
       return sendPullFirebaseConfig(statusBarId).then(function(sent) {
         if (!sent) throw new Error('Planner salvato su Firebase, ma PCU non ha risposto e il topic comandi ntfy non è configurato');
@@ -1583,7 +1587,7 @@ function readDailyAwayPlan() {
   p.enabled = en ? !!en.checked : !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled);
   return p;
 }
-var DAILY_PLAN_ZOOMS=[0.5,0.75,1,1.5];
+var DAILY_PLAN_ZOOMS=[0.5,0.75,1,1.5,2,3,4,5];
 var _dailyPlanZoomIndex=1, _dailyPlanSelectedId=null, _dailyPlanPointer=null, _dailyPlanBound=false;
 function dailyPlanScale(){return DAILY_PLAN_ZOOMS[_dailyPlanZoomIndex];}
 function dailyPlanClampMinute(v){return Math.max(0,Math.min(1439+59/60,Number(v)||0));}

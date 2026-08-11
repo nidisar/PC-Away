@@ -48,6 +48,8 @@ const sendCmdBlock = match[1].slice(match[1].indexOf('function sendCmd'), match[
 if (sendCmdBlock.includes('loadPcuStatus')) throw new Error('Il comando Bot non deve spegnere gli AR con una lettura anticipata');
 if (!html.includes("switchTab('scheduler',this);loadCfgCloud(true)")) throw new Error('Sched deve aprire direttamente la configurazione cloud');
 if (!html.includes("switchTab('plan',this);loadCfgCloud(true)")) throw new Error('Plan deve aprire direttamente la configurazione cloud');
+if (!html.includes("DAILY_PLAN_ZOOMS=[0.5,0.75,1,1.5,2,3,4,5]")) throw new Error('Zoom Plan deve arrivare al 500%');
+if (!html.includes("status.plannerApplyId === applyId")) throw new Error('Conferma Plan deve usare l’ID restituito da PCU');
 if (!html.includes("loadHaul(true,false)")) throw new Error('Haul deve caricare subito senza attesa push');
 
 const schedulerPanel = html.slice(html.indexOf('id="tab-scheduler"'), html.indexOf('id="tab-plan"'));
