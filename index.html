@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.29</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.30</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -1495,7 +1495,15 @@ function dailyPlanApplySignature(plan) {
   return JSON.stringify({ enabled:!!normalized.enabled, events:events });
 }
 function waitForDailyPlanApplied(expectedPlan, deadline, applyId) {
-  return fbDbRead('/pcu_status').then(function(status) {
+  var resultRead = applyId ? fbDbRead('/pcu_command_results/'+applyId).catch(function(){ return null; }) : Promise.resolve(null);
+  return resultRead.then(function(result) {
+    if (result && result.ok === true) {
+      fbDbRequest('/pcu_command_results/'+applyId, { method:'DELETE' }).catch(function(){});
+      return { plannerApplyId:applyId, confirmed:true };
+    }
+    if (result && result.ok === false) throw new Error(result.error || 'PCU ha rifiutato il planner');
+    return fbDbRead('/pcu_status');
+  }).then(function(status) {
     var applied = status && status.config && status.config.dailyCptPlan;
     if (applyId && status && status.plannerApplyId === applyId) return status;
     if (applied && dailyPlanApplySignature(applied) === dailyPlanApplySignature(expectedPlan)) return status;
@@ -1651,7 +1659,7 @@ function dailyPlanBindPointers(){
   lanes.querySelectorAll('.plan-v-lane').forEach(function(lane){
     lane.addEventListener('pointerdown',function(e){if(e.button!=null&&e.button!==0)return;var minute=dailyPlanMinuteFromPointer(e),target=e.target.closest('.plan-v-event'),type=lane.dataset.type,ev;
       if(target){ev=dailyPlanEventById(target.dataset.eventId);_dailyPlanSelectedId=ev&&ev.id;var handle=e.target.dataset.handle;_dailyPlanPointer={id:ev.id,action:handle?('resize-'+handle):(ev.type==='point_blank'?'move-point':ev.type==='hotspot'?'move-assault':'move-window'),start:minute,at:dailyPlanEventStart(ev),target:ev.target?dailyAwayTimeToMin(ev.target):0,from:ev.from?dailyAwayTimeToMin(ev.from):0,to:ev.to?dailyAwayTimeToMin(ev.to):0,fromHour:ev.fromHour,toHour:ev.toHour,occurrenceHour:parseInt(target.dataset.occurrenceHour,10)};}
-      else{var id=type+'_'+Date.now();if(type==='point_blank')ev={id:id,type:type,at:dailyAwayMinToTime(minute),queue:'RFY'};else if(type==='hotspot'){var hour=Math.floor(minute/60);ev={id:id,type:type,target:dailyAwayMinToTime(minute),fromHour:hour,toHour:hour,profile:'surgical_night',queue:'RFY'};}else ev={id:id,type:type,from:dailyAwayMinToTime(minute),to:dailyAwayMinToTime(minute+1/6),queue:'RFY'};_fData.dailyCptPlan.events.push(ev);_dailyPlanSelectedId=id;_dailyPlanPointer={id:id,action:(type==='point_blank'?'move-point':type==='hotspot'?'move-assault':'create-window'),start:minute,at:minute,from:minute,to:minute+1/6,fromHour:ev.fromHour,toHour:ev.toHour,occurrenceHour:ev.fromHour};}
+      else{var id=type+'_'+Date.now();if(type==='point_blank')ev={id:id,type:type,at:dailyAwayMinToTime(minute),queue:'RFY'};else if(type==='hotspot'){var hour=Math.floor(minute/60);ev={id:id,type:type,target:dailyAwayMinToTime(minute),fromHour:hour,toHour:hour,profile:'surgical_night',queue:'RFY'};}else ev={id:id,type:type,from:dailyAwayMinToTime(minute),to:dailyAwayMinToTime(minute+1/6),queue:'RFY'};_fData.dailyCptPlan.events.push(ev);_dailyPlanSelectedId=id;_dailyPlanPointer={id:id,action:(type==='point_blank'?'move-point':type==='hotspot'?'move-assault':'create-window'),start:minute,at:minute,target:minute,from:minute,to:minute+1/6,fromHour:ev.fromHour,toHour:ev.toHour,occurrenceHour:ev.fromHour};}
       lane.setPointerCapture(e.pointerId);dailyPlanShowGuide(minute);dailyPlanMarkDirty();renderDailyPlannerAway();e.preventDefault();});
     lane.addEventListener('pointermove',function(e){var minute=dailyPlanMinuteFromPointer(e);dailyPlanShowGuide(minute);var p=_dailyPlanPointer;if(!p)return;var ev=dailyPlanEventById(p.id);if(!ev)return;var delta=minute-p.start;
       if(p.action==='move-point')ev.at=dailyAwayMinToTime(p.at+delta);
