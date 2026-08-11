@@ -21,7 +21,8 @@ const required = [
   'backstab_window', 'hotspot', 'Attendo PCU', "'PATCH', configPatch",
   '/pcu_v2/confirmed_orders.json', "row.origin === 'remote_ntfy'",
   '_fbAuthPromise', 'fetchWithTimeout', 'waitForFreshPcuStatus', '_cloudLoaded',
-  'applyOptimisticCommandState', "join(',')+'/json?poll=0'", "if(t.key==='cmd')parseBotStato(msg)"
+  'applyOptimisticCommandState', "join(',')+'/json?poll=0'", "if(t.key==='cmd')parseBotStato(msg)",
+  'function firebaseFetch', 'resetLiveFeedSession();'
 ];
 for (const token of required) {
   if (!html.includes(token)) throw new Error('Contratto mancante: ' + token);
@@ -39,6 +40,10 @@ const startupBlock = match[1].slice(match[1].indexOf('function refreshStartupDat
 if (startupBlock.includes('loadDrops(')) throw new Error('Drops non deve caricarsi automaticamente all\'avvio');
 const commandInitBlock = match[1].slice(match[1].indexOf('function initializeCommandStates'), match[1].indexOf('function setActiveMode'));
 if (commandInitBlock.includes('setActiveMode(')) throw new Error('Il Bot non deve inventare un modo iniziale');
+const sendCmdBlock = match[1].slice(match[1].indexOf('function sendCmd'), match[1].indexOf('function setBtnTextByKey'));
+if (sendCmdBlock.includes('loadPcuStatus')) throw new Error('Il comando Bot non deve spegnere gli AR con una lettura anticipata');
+if (!html.includes("switchTab('scheduler',this);loadCfgCloud(true)")) throw new Error('Sched deve aprire direttamente la configurazione cloud');
+if (!html.includes("loadHaul(true,false)")) throw new Error('Haul deve caricare subito senza attesa push');
 
 const plannerStart = match[1].indexOf('function dailyAwayPad2');
 const plannerEnd = match[1].indexOf('function readDailyAwayPlan');

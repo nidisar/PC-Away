@@ -286,7 +286,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.25</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.26</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -302,10 +302,10 @@
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
     <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this);loadPcuStatus()"><span class="ticon">🎮</span>Bot</button>
-    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);refreshCfgFromPcu()"><span class="ticon">⏰</span>Sched</button>
+    <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud(true)"><span class="ticon">⏰</span>Sched</button>
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
-    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true,true)">     <span class="ticon">📦</span>Haul</button>
+    <button id="tab-btn-haul"                     onclick="switchTab('haul',this);loadPcuStatus();loadHaul(true,false)">    <span class="ticon">📦</span>Haul</button>
     <button id="tab-btn-monitor"                  onclick="switchTab('monitor',this);loadPcuStatus();loadMonitor()">  <span class="ticon">M</span>Monitor</button>
     <button id="tab-btn-settings"                 onclick="switchTab('settings',this)">            <span class="ticon">⚙️</span>Info</button>
   </div>
@@ -747,7 +747,7 @@ function loadHaulFromMonitorLog() {
   return fbGetToken().then(function(token) {
     var days = [monitorDayKey(0), monitorDayKey(1), monitorDayKey(2)];
     return Promise.all(days.map(function(day) {
-      return fetchWithTimeout(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token, {}, 10000)
+      return firebaseFetch(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token, {})
         .then(function(r){ if(!r.ok) throw new Error('Firebase Monitor: HTTP '+r.status); return r.json(); })
         .then(function(data){ return data || {}; })
         .catch(function(){ return {}; });
@@ -1076,8 +1076,6 @@ function sendCmd(cmd) {
     .then(function(r){
       if (!r.ok) throw new Error('HTTP '+r.status);
       showCmdFeedback('✅ "'+cmd+'" inviato a PCU',false);
-      setTimeout(loadPcuStatus,2500);
-      setTimeout(loadPcuStatus,6000);
     })
     .catch(function(e){restoreBotVisualState(previous);showCmdFeedback('❌ '+(e.message||'Invio comando fallito'),true);});
 }
@@ -1282,12 +1280,7 @@ function loadCfgCloud(force) {
     return data;
   }).then(function(data) {
     _fData = normalizeRemoteConfig(data); _fData._pcuLiveConfig = !!data._pcuLiveConfig; _fData._cloudLoaded = true; _fDirty = false; _cfgLoading = false;
-    if (_fData._pcuLiveConfig) { showNs('sched','body'); populateSchedulerForm(); }
-    else {
-      var el = document.getElementById('sched-not-configured');
-      if (el) el.textContent = '⏳ Stato live PCU non ancora disponibile: riapri Sched fra 1-2 secondi o verifica che PCU sia acceso.';
-      showNs('sched','not-configured');
-    }
+    showNs('sched','body'); populateSchedulerForm();
     showNs('filters','body'); renderFilters();
   }).catch(function(e) {
     _cfgLoading = false;
@@ -1321,7 +1314,7 @@ function fbTokenMaybe() {
 function fbDbRequest(path, options) {
   options = Object.assign({ cache:'no-store' }, options || {});
   return fbGetToken().then(function(token) {
-    return fetchWithTimeout(fbDbUrl(path, token), options, 10000).then(function(r) {
+    return firebaseFetch(fbDbUrl(path, token), options).then(function(r) {
       if (r.ok) return r;
       throw new Error('Firebase DB ' + path + ': HTTP ' + r.status);
     });
@@ -1406,12 +1399,7 @@ function refreshLivePcuStatus(silent) {
   });
 }
 function refreshCfgFromPcu() {
-  ['sched'].forEach(function(ns){ showNs(ns,'loading'); });
-  refreshLivePcuStatus(true).then(function(){ loadCfgCloud(true); }).catch(function(e){
-    var el=document.getElementById('sched-not-configured');
-    if(el) el.textContent='❌ '+(e.message||'PCU non raggiungibile');
-    showNs('sched','not-configured');
-  });
+  loadCfgCloud(true);
   return false;
 }
 function requestPcuHaulPush() {
@@ -1781,14 +1769,25 @@ function fetchWithTimeout(url, options, timeoutMs) {
   }).finally(function(){ clearTimeout(timer); });
 }
 
+/* Safari/PWA: il segnale AbortController su richieste Firebase può produrre
+   "Failed to fetch" immediato. Il timeout logico non altera la fetch reale. */
+function firebaseFetch(url, options) {
+  return new Promise(function(resolve, reject) {
+    var done=false;
+    var timer=setTimeout(function(){if(!done){done=true;reject(new Error('Firebase non raggiungibile entro 15 secondi'));}},15000);
+    fetch(url, options||{}).then(function(r){if(done)return;done=true;clearTimeout(timer);resolve(r);})
+      .catch(function(e){if(done)return;done=true;clearTimeout(timer);reject(new Error('Connessione Firebase fallita: '+(e&&e.message||'errore di rete')));});
+  });
+}
+
 function fbGetToken() {
   if (_fbToken && Date.now() < _fbExpiry) return Promise.resolve(_fbToken);
   if (!cfg.fbEmail || !cfg.fbPassword) return Promise.reject(new Error('Credenziali Firebase mancanti nelle Impostazioni'));
   if (_fbAuthPromise) return _fbAuthPromise;
-  _fbAuthPromise = fetchWithTimeout('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_API_KEY, {
+  _fbAuthPromise = firebaseFetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key='+FB_API_KEY, {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ email:cfg.fbEmail, password:cfg.fbPassword, returnSecureToken:true })
-  }, 10000).then(function(r){
+  }).then(function(r){
     if(!r.ok) return r.json().catch(function(){return {};}).then(function(d){ throw new Error('Firebase auth: '+(d.error&&d.error.message||('HTTP '+r.status))); });
     return r.json();
   }).then(function(d){ _fbToken=d.idToken; _fbExpiry=Date.now()+55*60*1000; return _fbToken; })
@@ -1822,7 +1821,7 @@ function loadDrops(more) {
   });
 }
 function loadDropsFromFirebasePath(token, path) {
-  return fetchWithTimeout(FB_DB_URL+path+'.json?auth='+token, {}, 10000)
+  return firebaseFetch(FB_DB_URL+path+'.json?auth='+token, {})
     .then(function(r){ if(!r.ok) throw new Error('Firebase DB '+path+': HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
@@ -1886,7 +1885,7 @@ function loadHaul(force, requestFresh) {
   _haulOrders=[]; _haulPage=0; showHaulState('loading');
   var pre = requestFresh ? requestPcuHaulPush().then(function(){ return new Promise(function(resolve){ setTimeout(resolve, 7000); }); }) : Promise.resolve();
   pre.then(function(){ return fbGetToken(); }).then(function(token) {
-    return fetchWithTimeout(FB_DB_URL+'/pcu_haul/orders.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' }, 10000);
+    return firebaseFetch(FB_DB_URL+'/pcu_haul/orders.json?auth='+token+'&_ts='+Date.now(), { cache:'no-store' });
   }).then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
     .then(function(data) {
       var rows=[];
@@ -1980,7 +1979,7 @@ function loadMonitor(more) {
   fbGetToken().then(function(token) {
     var days = [monitorDayKey(0), monitorDayKey(1), monitorDayKey(2)];
     return Promise.all(days.map(function(day) {
-      return fetchWithTimeout(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token, {}, 10000)
+      return firebaseFetch(FB_DB_URL+'/pcu_monitor_logs/'+day+'.json?auth='+token, {})
         .then(function(r){ if(!r.ok) throw new Error('Firebase DB: HTTP '+r.status); return r.json(); })
         .then(function(data){ return { day: day, data: data || {} }; });
     }));
@@ -2071,8 +2070,8 @@ function saveSettings() {
   if (!requirePwd) localStorage.removeItem(PWD_KEY);
   else if (newPwd) localStorage.setItem(PWD_KEY, newPwd);
   document.getElementById('s-newpwd').value=''; document.getElementById('s-newpwd2').value='';
-  _fData=null; _haulOrders=[]; _allDrops=[]; _fbToken=null; _fbExpiry=0;
-  _sseLastId={}; saveSseIds();
+  _fData=null; _haulOrders=[]; _allDrops=[]; _fbToken=null; _fbExpiry=0; _fbAuthPromise=null;
+  resetLiveFeedSession();
   fb.style.color='var(--dpt)'; fb.textContent='✅ Impostazioni salvate';
   setTimeout(function(){ fb.textContent=''; }, 3000);
   refreshStartupData(); resubscribePush();
