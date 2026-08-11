@@ -1,5 +1,5 @@
-/* PCU Away - Service Worker v1.22 */
-const CACHE = 'pcu-away-v22';
+/* PCU Away - Service Worker v1.23 */
+const CACHE = 'pcu-away-v23';
 /* Path base dinamico — funziona sia su localhost che su GitHub Pages /PC-Away/ */
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json', BASE + 'icon.svg'];
@@ -58,7 +58,8 @@ self.addEventListener('push', e => {
   const appUrl = self.location.origin + BASE;
 
   const actions = (msg.actions || []).map(function(a) {
-    return { action: a.id || a.label, title: a.label };
+    var isOrder = String(a.label || '').indexOf('Ordina') !== -1;
+    return { action: isOrder ? 'order' : (a.id || a.label), title: a.label };
   }).slice(0, 2);
 
   const opts = {
@@ -93,12 +94,23 @@ self.addEventListener('notificationclick', function(e) {
   var appUrl = data.url || (self.location.origin + BASE);
 
   if (e.action === 'order') {
-    var ntfyAction = (msg.actions || []).find(function(a) { return a.label === '🎯 Ordina'; });
-    if (ntfyAction && ntfyAction.url) {
-      e.waitUntil(fetch(ntfyAction.url, {
+    var ntfyAction = (msg.actions || []).find(function(a) { return String(a.label || '').indexOf('Ordina') !== -1; });
+    var target = null;
+    try { target = new URL(ntfyAction && ntfyAction.url || ''); } catch(err) {}
+    if (ntfyAction && target && target.origin === 'https://ntfy.sh' && target.pathname === '/') {
+      var safeHeaders = { 'Content-Type': 'application/json' };
+      if (ntfyAction.headers && ntfyAction.headers.Authorization) safeHeaders.Authorization = ntfyAction.headers.Authorization;
+      e.waitUntil(fetch(target.href, {
         method: ntfyAction.method || 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: safeHeaders,
         body: ntfyAction.body || ''
+      }).then(function(res) {
+        return self.registration.showNotification(res.ok ? 'PCU Away' : 'PCU Away - invio fallito', {
+          body: res.ok ? 'Comando pubblicato. Attendi la conferma di PCU/UV.' : 'ntfy HTTP ' + res.status,
+          icon: BASE + 'icon.svg', tag: 'pcu-away-order-result'
+        });
+      }).catch(function(err) {
+        return self.registration.showNotification('PCU Away - invio fallito', { body:String(err && err.message || err), icon:BASE+'icon.svg', tag:'pcu-away-order-result' });
       }));
       return;
     }

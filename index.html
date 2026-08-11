@@ -155,12 +155,14 @@
     .daily-plan-actions button, .daily-event-del { border: 1px solid var(--border); background: var(--bg3); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; }
     .daily-plan-actions button:active, .daily-event-del:active { filter: brightness(.9); }
     .daily-add-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 8px; }
-    .daily-add-row.pb { grid-template-columns: 1fr auto; }
+    .daily-add-row.pb { grid-template-columns: 1fr auto auto; }
     .daily-event-list { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
     .daily-event { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; background: var(--bg3); border: 1px solid var(--border); border-radius: 9px; padding: 8px; }
     .daily-badge { font-size: 10px; font-weight: 800; border-radius: 999px; padding: 3px 7px; text-transform: uppercase; }
     .daily-badge.pb { color: #ff7070; background: rgba(255,80,80,.12); border: 1px solid rgba(255,80,80,.28); }
     .daily-badge.ar { color: #8ee08e; background: rgba(76,175,80,.12); border: 1px solid rgba(76,175,80,.28); }
+    .daily-badge.bs { color: #d69cff; background: rgba(174,92,255,.12); border: 1px solid rgba(174,92,255,.28); }
+    .daily-badge.as { color: #ffbd59; background: rgba(255,170,50,.12); border: 1px solid rgba(255,170,50,.28); }
     .daily-time { color: var(--text); font-size: 12px; font-weight: 700; }
     .daily-preset-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; align-items: center; margin-top: 7px; }
     .daily-preset-row span { color: var(--text2); font-size: 12px; font-weight: 700; }
@@ -284,7 +286,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">vdailyplan1</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.23</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -422,7 +424,7 @@
             <div class="section-title">&#128197; Planner Giornaliero CPT</div>
             <span class="f-hint" id="sc-daily-state">Stato gestito dal tab Bot</span>
           </div>
-          <div class="f-hint">Point Blank e finestre AR RFY/CPT. Se abilitato prende priorit? sullo scheduler orario classico.</div>
+          <div class="f-hint">Point Blank, Assault, Backstab e finestre Autorefresh RFY/CPT. Se abilitato prende priorità sullo scheduler orario classico.</div>
           <div class="daily-plan-box">
             <div class="daily-plan-actions">
               <button type="button" onclick="dailyAwayPresetHourlyPb()">PB ogni ora :00</button>
@@ -431,12 +433,23 @@
             </div>
             <div class="daily-add-row pb">
               <div class="f-field"><label>Point Blank</label><input type="time" id="sc-daily-pb-at" value="00:00:00" step="1"></div>
+              <label class="f-check-row"><input type="checkbox" id="sc-daily-pb-random"> Random ±2 min</label>
               <button class="f-reload-btn" type="button" onclick="dailyAwayAddPb()">+ PB</button>
             </div>
             <div class="daily-add-row">
               <div class="f-field"><label>AR da</label><input type="time" id="sc-daily-ar-from" value="00:58:00" step="1"></div>
               <div class="f-field"><label>AR a</label><input type="time" id="sc-daily-ar-to" value="01:03:00" step="1"></div>
               <button class="f-reload-btn" type="button" onclick="dailyAwayAddAr()">+ AR</button>
+            </div>
+            <div class="daily-add-row">
+              <div class="f-field"><label>Backstab da</label><input type="time" id="sc-daily-bs-from" value="00:58:00" step="1"></div>
+              <div class="f-field"><label>Backstab a</label><input type="time" id="sc-daily-bs-to" value="01:03:00" step="1"></div>
+              <button class="f-reload-btn" type="button" onclick="dailyAwayAddBackstab()">+ Backstab</button>
+            </div>
+            <div class="daily-add-row">
+              <div class="f-field"><label>Assault target</label><input type="time" id="sc-daily-assault-at" value="02:00:00" step="1"></div>
+              <div class="f-field"><label>Ore attive</label><div><input class="f-etv-input" type="number" id="sc-daily-assault-from" min="0" max="23" value="2"> – <input class="f-etv-input" type="number" id="sc-daily-assault-to" min="0" max="23" value="7"></div></div>
+              <button class="f-reload-btn" type="button" onclick="dailyAwayAddAssault()">+ Assault</button>
             </div>
             <div class="daily-event-list" id="sc-daily-events"></div>
             <div class="f-hint" id="sc-daily-preset-status"></div>
@@ -447,12 +460,14 @@
         </div>
         <div class="f-section">
           <div class="f-section-header">
-            <div class="section-title">🕹️ Pattern Manuale</div>
-            <span class="f-hint" id="sc-m-state">Stato gestito dal tab Bot</span>
+            <div class="section-title">🕹️ Pattern Manuali DPT / AA</div>
+            <span class="f-hint" id="sc-m-state">Scheduler generale gestito dal tab Bot</span>
           </div>
           <div class="f-row2">
-            <div class="f-field"><label>Minuto dell'ora (0-59)</label><input type="number" id="sc-m-min" min="0" max="59" step="1" placeholder="es. 30"><div class="f-hint">Scatta ogni ora a questo minuto</div></div>
-            <div class="f-field"><label>Durata AR (min)</label><input type="number" id="sc-m-dur" min="1" max="60" step="1" value="5"></div>
+            <div class="f-field"><label><input type="checkbox" id="sc-m-afa-enabled"> DPT · minuto dell'ora</label><input type="number" id="sc-m-afa-min" min="0" max="59" step="1" placeholder="es. 30"><div class="f-hint">Scatta ogni ora a questo minuto</div></div>
+            <div class="f-field"><label>Durata AR DPT (min)</label><input type="number" id="sc-m-afa-dur" min="1" max="60" step="1" value="5"></div>
+            <div class="f-field"><label><input type="checkbox" id="sc-m-ai-enabled"> AA · minuto dell'ora</label><input type="number" id="sc-m-ai-min" min="0" max="59" step="1" placeholder="es. 30"><div class="f-hint">Scatta ogni ora a questo minuto</div></div>
+            <div class="f-field"><label>Durata AR AA (min)</label><input type="number" id="sc-m-ai-dur" min="1" max="60" step="1" value="5"></div>
           </div>
         </div>
         <button class="f-save-btn" id="sched-save-btn" onclick="saveScheduler()">💾 Salva e applica a PCU</button>
@@ -476,6 +491,18 @@
         <div class="f-section">
           <div class="f-section-header"><div class="section-title">💰 Blacklist ETV</div><label class="f-toggle"><input type="checkbox" id="f-bletv-enabled"><div class="f-toggle-track"></div></label></div>
           <div class="f-etv-row"><span class="f-etv-label">Nascondi se ETV ≤ €</span><input class="f-etv-input" id="f-bletv-max" type="number" min="0" step="0.5" placeholder="0"></div>
+          <label class="f-check-row"><input type="checkbox" id="f-bletv-wait"> Se l'ETV manca, attendi l'idratazione prima di decidere</label>
+          <label class="f-check-row"><input type="checkbox" id="f-bletv-priority"> Prioritaria: vince anche su Brand VIP</label>
+        </div>
+        <div class="f-section">
+          <div class="f-section-header"><div class="section-title">Seleziona Coda</div><label class="f-toggle"><input type="checkbox" id="f-queue-enabled"><div class="f-toggle-track"></div></label></div>
+          <div class="f-hint">Il cecchino automatico parte soltanto per le code selezionate. Ordini manuali, app e ntfy non vengono bloccati.</div>
+          <div class="f-row2">
+            <label class="f-check-row"><input type="checkbox" id="f-queue-cpt"> CPT</label>
+            <label class="f-check-row"><input type="checkbox" id="f-queue-dpt"> DPT</label>
+            <label class="f-check-row"><input type="checkbox" id="f-queue-aa"> AA</label>
+          </div>
+          <label class="f-check-row"><input type="checkbox" id="f-queue-priority"> Prioritaria: vince anche su Brand VIP</label>
         </div>
         <div class="f-section">
           <div class="f-section-header"><div class="section-title">⭐ Brand VIP</div><label class="f-toggle"><input type="checkbox" id="f-brands-enabled"><div class="f-toggle-track"></div></label></div>
@@ -582,6 +609,8 @@ var VAPID_KEY  = 'BEMjM0sNxh41x0a6Lz3YaqkJ7AUhZefxsOQgw-at69i0fM1CybVBcj7-QQXf4N
 var STORE_KEY  = 'pcaway_config';
 var PWD_KEY    = 'pcaway_pwd';
 var MAX_FEED   = 60;
+var FEED_SEEN_KEY = 'pcaway_feed_seen_v2';
+var FEED_BOOTSTRAP_LIMIT = 12;
 var GIST_CONFIG_FILE = 'uvcomp_config.json';
 var GIST_HAUL_FILE   = 'uvcomp_haul.json'; // legacy only
 var FB_API_KEY  = 'AIzaSyBjQ-Ev2RdlimCKg6nl6Wxu3bCGtdiELnY';
@@ -616,19 +645,26 @@ function showApp() { loadCfg(); document.getElementById('login-screen').style.di
 /* ── Init ── */
 function initApp() {
   loadSettingsToForm(); updatePushStatusBar(); initializeCommandStates();
-  loadSseIds(); refreshStartupData();
+  loadSseIds(); loadFeedSeen(); refreshStartupData(true);
   registerSW(); listenSWMessages();
   document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'visible') refreshStartupData();
+    if (document.visibilityState === 'visible') refreshStartupData(false);
   });
 }
 
-function refreshStartupData() {
-  startSSE();
-  preloadNtfyHistory();
-  requestPcuStatus(true);
+var _lastStatusRequestAt = 0;
+function refreshStartupData(initial) {
+  if (initial) preloadNtfyHistory().finally(startSSE);
+  else startSSE();
   loadPcuStatus();
-  loadDrops();
+  if (Date.now() - _lastStatusRequestAt > 15000) {
+    _lastStatusRequestAt = Date.now();
+    requestPcuStatus(true).then(function(){
+      setTimeout(loadPcuStatus, 2500);
+      setTimeout(loadPcuStatus, 6000);
+    }).catch(function(){});
+  }
+  if (initial) loadDrops();
 }
 
 function configuredTopics() {
@@ -698,7 +734,7 @@ function loadPcuStatus() {
 
 function isFreshStatus(status) {
   var t = Number(status && status.lastUpdate || 0);
-  return !!t && (Date.now() - t) < 6 * 60 * 60 * 1000;
+  return !!t && (Date.now() - t) < 30 * 1000;
 }
 
 function updateHaulFromStatus(haul) {
@@ -823,11 +859,14 @@ function startSSE() {
           .then(function(res) {
             if (!res.ok) throw new Error('HTTP ' + res.status);
             okCount++; if (okCount >= topics.length) setConnDot('green');
-            var reader = res.body.getReader(); var dec = new TextDecoder();
+            var reader = res.body.getReader(); var dec = new TextDecoder(); var buffer = '';
             function pump() {
               reader.read().then(function(chunk) {
                 if (chunk.done) { okCount = Math.max(0, okCount-1); if (!okCount) setConnDot('red'); if (!ac.signal.aborted) connect(5000); return; }
-                dec.decode(chunk.value, { stream:true }).split('\n').forEach(function(line) {
+                buffer += dec.decode(chunk.value, { stream:true });
+                var lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+                lines.forEach(function(line) {
                   line = line.trim(); if (!line) return;
                   try {
                     var msg = JSON.parse(line);
@@ -874,21 +913,25 @@ function preloadNtfyHistory() {
   if (!topics.length) return Promise.resolve([]);
   var headers = {}; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
   return Promise.all(topics.map(function(t) {
-    var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=1&since=12h';
+    var lastId = _sseLastId[t.id];
+    var since = lastId ? encodeURIComponent(lastId) : '10m';
+    var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=1&since=' + since;
     return fetch(url, { headers: headers })
       .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
       .then(function(text) {
         return text.split('\n').map(function(line){ line=line.trim(); if(!line) return null; try { return JSON.parse(line); } catch(e) { return null; } })
           .filter(function(msg){ return msg && msg.event === 'message'; })
-          .slice(-20)
+          .slice(-(lastId ? FEED_BOOTSTRAP_LIMIT : 3))
           .map(function(msg){ return { msg: msg, topic: t }; });
       }).catch(function(){ return []; });
   })).then(function(groups) {
     var items = []; var hasCmdState = false;
     groups.forEach(function(g){ items = items.concat(g); });
     items.sort(function(a,b){ return (a.msg.time||0) - (b.msg.time||0); });
+    if (items.length > FEED_BOOTSTRAP_LIMIT) items = items.slice(-FEED_BOOTSTRAP_LIMIT);
     items.forEach(function(item) {
       addFeedItem(item.msg, item.topic.key, item.topic.label, true);
+      if (item.msg.id) _sseLastId[item.topic.id] = item.msg.id;
       parseHaulFromText(item.msg.message || '');
       if (item.topic.key === 'cmd') { hasCmdState = true; parseHaulFromText(item.msg.message || ''); }
     });
@@ -901,16 +944,35 @@ function preloadNtfyHistory() {
     if (cf && !hasCmdState && cf.textContent.indexOf('caricamento') !== -1) {
       cf.style.color='var(--text2)'; cf.textContent='Nessuno stato bot recente.';
     }
+    saveSseIds();
     return items;
   });
 }
 
 var _feedSeen = {};
 var _orderActions = {};
+var _pendingOrders = {};
+function loadFeedSeen() {
+  try {
+    var rows = JSON.parse(localStorage.getItem(FEED_SEEN_KEY) || '[]');
+    (Array.isArray(rows) ? rows : []).forEach(function(id){ _feedSeen[id] = true; });
+  } catch(e) { _feedSeen = {}; }
+}
+function saveFeedSeen() {
+  try { localStorage.setItem(FEED_SEEN_KEY, JSON.stringify(Object.keys(_feedSeen).slice(-300))); } catch(e) {}
+}
+function isTechnicalFeedMessage(msg, qKey) {
+  if (qKey !== 'cmd') return false;
+  var text = ((msg && msg.title) || '') + ' ' + ((msg && (msg.message || msg.body)) || '');
+  return /^\s*(push-status|push-haul|pull-firebase-config)\s*$/i.test(text.trim());
+}
 function addFeedItem(msg, qKey, qLabel, silent) {
+  if (isTechnicalFeedMessage(msg, qKey)) return;
+  if (qKey === 'cmd') handleRemoteOrderOutcome(msg);
   var feedKey = msg.id || ((msg.time||'') + ':' + qKey + ':' + (msg.title||'') + ':' + (msg.message||''));
   if (_feedSeen[feedKey]) return;
   _feedSeen[feedKey] = true;
+  saveFeedSeen();
   var list = document.getElementById('feed-list'); var empty = document.getElementById('feed-empty');
   if (empty) empty.style.display = 'none';
   var t = new Date((msg.time || (Date.now()/1000)) * 1000);
@@ -921,8 +983,8 @@ function addFeedItem(msg, qKey, qLabel, silent) {
     for (var ai = 0; ai < msg.actions.length; ai++) {
       var a = msg.actions[ai];
       if (a && (a.label||'').indexOf('Ordina') !== -1 && a.url && a.body) {
-        var actKey = 'a_' + (msg.id || Date.now() + ai); _orderActions[actKey] = a;
-        orderHtml = '<button class="fi-order-btn" onclick="execOrder(\'' + actKey + '\')">🎯 Ordina</button>'; break;
+        var actKey = 'a_' + (msg.id || Date.now() + ai); _orderActions[actKey] = { action:a, buttonId:'order-btn-'+actKey };
+        orderHtml = '<button class="fi-order-btn" id="order-btn-' + actKey + '" onclick="execOrder(\'' + actKey + '\')">🎯 Ordina</button>'; break;
       }
     }
   }
@@ -934,11 +996,81 @@ function addFeedItem(msg, qKey, qLabel, silent) {
 }
 
 function execOrder(key) {
-  var a = _orderActions[key]; if (!a) return;
+  var entry = _orderActions[key]; if (!entry) return;
+  var a = entry.action || entry;
+  var btn = document.getElementById(entry.buttonId || '');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Invio…'; }
+  var target;
+  try { target = new URL(a.url, location.href); } catch(e) { target = null; }
+  if (!target || target.origin !== NTFY_BASE || target.pathname !== '/') {
+    if (btn) { btn.disabled = false; btn.textContent = '🎯 Ordina'; }
+    showCmdFeedback('❌ Azione ordine non valida', true); return;
+  }
   var h = { 'Content-Type': 'application/json' }; if (cfg.token) h['Authorization'] = 'Bearer ' + cfg.token.trim();
-  fetch(a.url, { method: a.method||'POST', headers: h, body: a.body })
-    .then(function(r){ showCmdFeedback(r.ok ? '✅ Ordine inviato!' : '❌ HTTP ' + r.status, !r.ok); })
-    .catch(function(e){ showCmdFeedback('❌ ' + e.message, true); });
+  fetch(target.href, { method:'POST', headers: h, body: a.body })
+    .then(function(r){
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var data = remoteOrderActionData(a);
+      _pendingOrders[key] = { key:key, buttonId:entry.buttonId, dropId:data.dropId||'', asin:data.asin||'', title:data.title||'', sentAt:Date.now() };
+      if (btn) btn.textContent = '⏳ Attendo PCU';
+      showCmdFeedback('⏳ Comando pubblicato su ntfy: attendo l’esito reale di PCU/UV.', false);
+      pollPendingOrderConfirmation(key, 0);
+      setTimeout(function(){
+        if (!_pendingOrders[key]) return;
+        var waitingBtn=document.getElementById(entry.buttonId||'');
+        if (waitingBtn) waitingBtn.textContent='⌛ Esito nel Feed';
+      }, 20000);
+    })
+    .catch(function(e){ if (btn) { btn.disabled=false; btn.textContent='🎯 Ordina'; } showCmdFeedback('❌ Invio fallito: ' + e.message, true); });
+}
+function remoteOrderActionData(a) {
+  try {
+    var outer = JSON.parse(a.body || '{}');
+    var inner = typeof outer.message === 'string' ? JSON.parse(outer.message) : (outer.message || {});
+    return inner && typeof inner === 'object' ? inner : {};
+  } catch(e) { return {}; }
+}
+function handleRemoteOrderOutcome(msg) {
+  var title = String(msg && msg.title || '');
+  var body = String(msg && (msg.message || msg.body) || '');
+  var failed = /ordine remoto fallito/i.test(title);
+  var completed = /ordine remoto confermato|ordinato da remoto/i.test(title + ' ' + body);
+  if (!failed && !completed) return;
+  Object.keys(_pendingOrders).forEach(function(key){
+    var p = _pendingOrders[key];
+    var matches = (p.dropId && body.indexOf(p.dropId) !== -1) || (p.asin && body.indexOf(p.asin) !== -1) || (p.title && body.toLowerCase().indexOf(p.title.substring(0,50).toLowerCase()) !== -1);
+    if (!matches) return;
+    var btn=document.getElementById(p.buttonId||'');
+    if (btn) btn.textContent = failed ? '❌ Fallito' : '✅ Ordinato';
+    showCmdFeedback(failed ? '❌ PCU/UV: ordine remoto fallito.' : '✅ PCU/UV: ordine remoto confermato.', failed);
+    delete _pendingOrders[key];
+  });
+}
+function pollPendingOrderConfirmation(key, attempt) {
+  var p = _pendingOrders[key];
+  if (!p || !p.asin || !cfg.fbEmail || !cfg.fbPassword) return;
+  if (attempt >= 9) return;
+  setTimeout(function(){
+    var current = _pendingOrders[key]; if (!current) return;
+    fbGetToken().then(function(token){
+      var start = JSON.stringify(current.asin.toUpperCase() + '_');
+      var end = JSON.stringify(current.asin.toUpperCase() + '_\uf8ff');
+      var url = FB_DB_URL + '/pcu_v2/confirmed_orders.json?auth=' + encodeURIComponent(token) + '&orderBy=' + encodeURIComponent('"$key"') + '&startAt=' + encodeURIComponent(start) + '&endAt=' + encodeURIComponent(end);
+      return fetch(url, { cache:'no-store' });
+    }).then(function(r){ if (!r.ok) throw new Error('Firebase HTTP ' + r.status); return r.json(); })
+      .then(function(rows){
+        var found = Object.keys(rows || {}).some(function(id){
+          var row=rows[id]||{}, identity=row.identity||{};
+          var confirmedAt=Date.parse(row.confirmedAt || row.updatedAt || row.createdAt || '') || 0;
+          return row.origin === 'remote_ntfy' && String(identity.asin||'').toUpperCase() === current.asin.toUpperCase() && confirmedAt >= current.sentAt - 5000;
+        });
+        if (found) {
+          var btn=document.getElementById(current.buttonId||''); if (btn) btn.textContent='✅ Ordinato';
+          showCmdFeedback('✅ PCU/UV: ordine remoto confermato.', false);
+          delete _pendingOrders[key];
+        } else pollPendingOrderConfirmation(key, attempt + 1);
+      }).catch(function(){ pollPendingOrderConfirmation(key, attempt + 1); });
+  }, attempt === 0 ? 2500 : 3500);
 }
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1071,27 +1203,34 @@ function defaultRemoteConfig() {
   return {
     arScheduleCpt: { active:false, enabled:true, startTime:'01:00', repeatHours:8, preMinutes:2, postMinutes:10, repeatMin:60, actionMode:'ar_only', pointBlankAr:false, autorefreshEnabled:true },
     dailyCptPlan: { enabled:false, events:[] },
-    arScheduleHourly: { enabled:false, preMinutes:3, jitterSec:90, noDropOffMin:5, manual:{ enabled:false, minute:null, durationMin:5 } },
+    arScheduleHourly: { enabled:false, preMinutes:3, jitterSec:90, noDropOffMin:5, manual:{ enabled:false, minute:null, durationMin:5 }, manualByQueue:{ AFA:{ enabled:false, minute:null, durationMin:5 }, AI:{ enabled:false, minute:null, durationMin:5 } } },
     blacklist: { enabled:false, list:[] },
-    blacklistEtv: { enabled:false, maxEtv:0 },
+    blacklistEtv: { enabled:false, maxEtv:0, waitMissingEtv:false, priority:false },
+    queueFilter: { enabled:true, queues:{ CPT:true, DPT:true, AA:true }, priority:false },
     brands: { enabled:false, list:[] },
     advancedRules: { enabled:true, rules:[] }
   };
 }
 
 function normalizeRemoteConfig(data) {
-  var base = defaultRemoteConfig();
   data = data && typeof data === 'object' ? data : {};
-  base.arScheduleCpt = Object.assign({}, base.arScheduleCpt, data.arScheduleCpt || {});
-  base.dailyCptPlan = normalizeDailyAwayPlan(data.dailyCptPlan || base.dailyCptPlan);
-  base.arScheduleHourly = Object.assign({}, base.arScheduleHourly, data.arScheduleHourly || {});
+  var defaults = defaultRemoteConfig();
+  var base = Object.assign({}, data);
+  base.arScheduleCpt = Object.assign({}, defaults.arScheduleCpt, data.arScheduleCpt || {});
+  base.dailyCptPlan = normalizeDailyAwayPlan(data.dailyCptPlan || defaults.dailyCptPlan);
+  base.arScheduleHourly = Object.assign({}, defaults.arScheduleHourly, data.arScheduleHourly || {});
   base.arScheduleHourly.manual = Object.assign({}, defaultRemoteConfig().arScheduleHourly.manual, (data.arScheduleHourly || {}).manual || {});
-  base.blacklist = Object.assign({}, base.blacklist, data.blacklist || {});
+  base.arScheduleHourly.manualByQueue = Object.assign({}, defaults.arScheduleHourly.manualByQueue, (data.arScheduleHourly || {}).manualByQueue || {});
+  base.arScheduleHourly.manualByQueue.AFA = Object.assign({}, defaults.arScheduleHourly.manualByQueue.AFA, base.arScheduleHourly.manualByQueue.AFA || {});
+  base.arScheduleHourly.manualByQueue.AI = Object.assign({}, defaults.arScheduleHourly.manualByQueue.AI, base.arScheduleHourly.manualByQueue.AI || {});
+  base.blacklist = Object.assign({}, defaults.blacklist, data.blacklist || {});
   base.blacklist.list = sortTextList(Array.isArray(base.blacklist.list) ? base.blacklist.list : []);
-  base.blacklistEtv = Object.assign({}, base.blacklistEtv, data.blacklistEtv || {});
-  base.brands = Object.assign({}, base.brands, data.brands || {});
+  base.blacklistEtv = Object.assign({}, defaults.blacklistEtv, data.blacklistEtv || {});
+  base.queueFilter = Object.assign({}, defaults.queueFilter, data.queueFilter || {});
+  base.queueFilter.queues = Object.assign({}, defaults.queueFilter.queues, (data.queueFilter || {}).queues || {});
+  base.brands = Object.assign({}, defaults.brands, data.brands || {});
   base.brands.list = sortTextList(Array.isArray(base.brands.list) ? base.brands.list : []);
-  base.advancedRules = Object.assign({}, base.advancedRules, data.advancedRules || {});
+  base.advancedRules = Object.assign({}, defaults.advancedRules, data.advancedRules || {});
   base.advancedRules.rules = Array.isArray(base.advancedRules.rules) ? base.advancedRules.rules : [];
   base.advancedRules.rules = base.advancedRules.rules.map(function(rule) {
     rule = Object.assign({}, rule || {});
@@ -1114,6 +1253,7 @@ function filterConfigSubset(data) {
     brands: data.brands,
     blacklist: data.blacklist,
     blacklistEtv: data.blacklistEtv,
+    queueFilter: data.queueFilter,
     advancedRules: data.advancedRules,
     categoryWhitelist: data.categoryWhitelist,
     categoryBlacklist: data.categoryBlacklist,
@@ -1152,11 +1292,12 @@ function loadCfgCloud(force) {
     var liveCfg = status && isFreshStatus(status) && status.config ? status.config : null;
     var filters = pair[2] || {};
     var data = Object.assign({}, remoteCfg || {}, liveCfg || {});
-    if (filters && Object.keys(filters).length) {
+    if (!liveCfg && filters && Object.keys(filters).length) {
       data.etv = filters.etv || data.etv;
       data.brands = filters.brands || data.brands;
       data.blacklist = filters.blacklist || data.blacklist;
       data.blacklistEtv = filters.blacklistEtv || data.blacklistEtv;
+      data.queueFilter = filters.queueFilter || data.queueFilter;
       data.advancedRules = filters.advancedRules || data.advancedRules;
       data.categoryWhitelist = filters.categoryWhitelist || data.categoryWhitelist;
       data.categoryBlacklist = filters.categoryBlacklist || data.categoryBlacklist;
@@ -1204,15 +1345,9 @@ function fbTokenMaybe() {
 }
 function fbDbRequest(path, options) {
   options = options || {};
-  return fbTokenMaybe().then(function(token) {
+  return fbGetToken().then(function(token) {
     return fetch(fbDbUrl(path, token), options).then(function(r) {
       if (r.ok) return r;
-      if (token) {
-        return fetch(fbDbUrl(path, null), options).then(function(r2) {
-          if (r2.ok) return r2;
-          throw new Error('Firebase DB ' + path + ': HTTP ' + r2.status);
-        });
-      }
       throw new Error('Firebase DB ' + path + ': HTTP ' + r.status);
     });
   });
@@ -1227,14 +1362,18 @@ function fbDbWrite(path, method, payload) {
     body: JSON.stringify(payload)
   }).then(function(){ return true; });
 }
-function patchGistAndPull(saveBtn, statusBarId) { return patchFirebaseAndPull(saveBtn, statusBarId); } // legacy alias
+function patchGistAndPull(saveBtn, statusBarId, scope) { return patchFirebaseAndPull(saveBtn, statusBarId, scope); } // legacy alias
 
-function patchFirebaseAndPull(saveBtn, statusBarId) {
+function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
   saveBtn.disabled = true; saveBtn.textContent = '⏳ Salvataggio…'; setBarStatus(statusBarId,'');
   var payload = normalizeRemoteConfig(_fData);
+  delete payload._pcuLiveConfig;
   payload.updatedAt = Date.now(); payload.schema = 'pcu_config_v1'; payload.source = 'pcu-away';
-  fbDbWrite('/pcu_config/current', 'PUT', payload).then(function() {
-    return fbDbWrite('/pcu_filters/config', 'PUT', filterConfigSubset(payload));
+  var configPatch = scope === 'filters' ? filterConfigSubset(payload) : payload;
+  configPatch.updatedAt = payload.updatedAt; configPatch.schema = 'pcu_config_v1'; configPatch.source = 'pcu-away';
+  fbDbWrite('/pcu_config/current', 'PATCH', configPatch).then(function() {
+    if (scope !== 'filters') return true;
+    return fbDbWrite('/pcu_filters/config', 'PATCH', filterConfigSubset(payload));
   }).then(function() {
     return sendApplyConfigCommands(statusBarId);
   }).then(function() {
@@ -1248,36 +1387,39 @@ function patchFirebaseAndPull(saveBtn, statusBarId) {
 }
 
 function requestPcuStatus(silent) {
-  var tasks = [];
   if (cfg.fbEmail && cfg.fbPassword) {
-    tasks.push(fbDbWrite('/pcu_commands', 'POST', { action:'pushStatus', ts: Date.now(), source:'pcu-away' }).catch(function(){ return null; }));
+    return fbDbWrite('/pcu_commands', 'POST', { action:'pushStatus', ts: Date.now(), source:'pcu-away' })
+      .catch(function(){ return requestPcuStatusViaNtfy(); });
   }
+  return requestPcuStatusViaNtfy();
+}
+function requestPcuStatusViaNtfy() {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
-  if (topic) {
-    var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
-    tasks.push(fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-status' }).catch(function(){ return null; }));
-  }
-  return Promise.all(tasks).then(function(){ return true; });
+  if (!topic) return Promise.resolve(false);
+  var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
+  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-status' }).then(function(r){ return r.ok; });
 }
 function refreshCfgFromPcu() {
   requestPcuStatus(true).then(function(){ setTimeout(function(){ loadCfgCloud(true); }, 900); });
   return false;
 }
 function requestPcuHaulPush() {
-  if (!cfg.fbEmail || !cfg.fbPassword) return Promise.resolve(false);
-  var tasks = [fbDbWrite('/pcu_commands', 'POST', { action:'pushHaul', ts: Date.now(), source:'pcu-away' }).catch(function(){ return null; })];
-  var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
-  if (topic) {
-    var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
-    tasks.push(fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-haul' }).catch(function(){ return null; }));
+  if (cfg.fbEmail && cfg.fbPassword) {
+    return fbDbWrite('/pcu_commands', 'POST', { action:'pushHaul', ts: Date.now(), source:'pcu-away' })
+      .catch(function(){ return requestPcuHaulViaNtfy(); });
   }
-  return Promise.all(tasks).then(function(){ return true; });
+  return requestPcuHaulViaNtfy();
+}
+function requestPcuHaulViaNtfy() {
+  var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
+  if (!topic) return Promise.resolve(false);
+  var headers = { 'Content-Type':'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer '+cfg.token.trim();
+  return fetch(NTFY_BASE+'/'+topic, { method:'POST', headers:headers, body:'push-haul' }).then(function(r){ return r.ok; });
 }
 
 function sendApplyConfigCommands(statusBarId) {
-  return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' }).then(function() {
-    return sendPullFirebaseConfig(statusBarId).catch(function(){ return null; });
-  });
+  return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts: Date.now(), source:'pcu-away' })
+    .catch(function(){ return sendPullFirebaseConfig(statusBarId); });
 }
 function sendPullFirebaseConfig(statusBarId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
@@ -1328,16 +1470,22 @@ function dailyAwayMinToTime(min) {
 function normalizeDailyAwayPlan(plan) {
   var p = Object.assign({ enabled:false, events:[] }, plan || {});
   p.events = (Array.isArray(p.events) ? p.events : []).map(function(ev, idx) {
-    if (!ev || (ev.type !== 'point_blank' && ev.type !== 'ar_window')) return null;
+    if (!ev || ['point_blank','ar_window','backstab_window','hotspot'].indexOf(ev.type) === -1) return null;
     if (ev.type === 'point_blank') {
       var at = dailyAwayTimeToMin(ev.at || ev.time); if (at == null) return null;
       return { id: ev.id || ('pb_' + at + '_' + idx), type:'point_blank', at: dailyAwayMinToTime(at), queue:'RFY', randomize: ev.randomize === true, randomBeforeSec: ev.randomize === true ? 120 : 0, randomAfterSec: ev.randomize === true ? 120 : 0 };
     }
+    if (ev.type === 'hotspot') {
+      var target = dailyAwayTimeToMin(ev.target || ev.at); if (target == null) return null;
+      var fromHour = Math.max(0, Math.min(23, parseInt(ev.fromHour,10) || 0));
+      var toHour = Math.max(fromHour, Math.min(23, parseInt(ev.toHour,10) || fromHour));
+      return { id: ev.id || ('assault_' + target + '_' + idx), type:'hotspot', target:dailyAwayMinToTime(target), fromHour:fromHour, toHour:toHour, profile:ev.profile === 'surgical_aggressive' ? 'surgical_aggressive' : 'surgical_night', queue:'RFY' };
+    }
     var from = dailyAwayTimeToMin(ev.from), to = dailyAwayTimeToMin(ev.to); if (from == null || to == null || from === to) return null;
-    return { id: ev.id || ('ar_' + from + '_' + to + '_' + idx), type:'ar_window', from: dailyAwayMinToTime(from), to: dailyAwayMinToTime(to), queue:'RFY' };
+    return { id: ev.id || ((ev.type === 'backstab_window' ? 'backstab_' : 'ar_') + from + '_' + to + '_' + idx), type:ev.type, from: dailyAwayMinToTime(from), to: dailyAwayMinToTime(to), queue:'RFY' };
   }).filter(Boolean).sort(function(a,b){
-    var am = a.type === 'point_blank' ? dailyAwayTimeToMin(a.at) : dailyAwayTimeToMin(a.from);
-    var bm = b.type === 'point_blank' ? dailyAwayTimeToMin(b.at) : dailyAwayTimeToMin(b.from);
+    var am = a.type === 'point_blank' ? dailyAwayTimeToMin(a.at) : a.type === 'hotspot' ? a.fromHour * 60 + (dailyAwayTimeToMin(a.target) % 60) : dailyAwayTimeToMin(a.from);
+    var bm = b.type === 'point_blank' ? dailyAwayTimeToMin(b.at) : b.type === 'hotspot' ? b.fromHour * 60 + (dailyAwayTimeToMin(b.target) % 60) : dailyAwayTimeToMin(b.from);
     return am - bm;
   });
   return p;
@@ -1358,13 +1506,19 @@ function renderDailyPlannerAway() {
   if (!_fData.dailyCptPlan.events.length) { list.innerHTML = '<div class="f-hint">Nessun evento nel planner giornaliero.</div>'; return; }
   _fData.dailyCptPlan.events.forEach(function(ev, idx) {
     var row = document.createElement('div'); row.className = 'daily-event';
-    row.innerHTML = '<span class="daily-badge '+(ev.type === 'point_blank' ? 'pb' : 'ar')+'">'+(ev.type === 'point_blank' ? 'PB' : 'AR')+'</span>' + '<span class="daily-time">'+(ev.type === 'point_blank' ? ev.at : ev.from + ' ? ' + ev.to)+'</span>' + '<button class="daily-event-del" type="button">?</button>';
+    var meta = ev.type === 'point_blank' ? { cls:'pb', label:'PB', time:ev.at + (ev.randomize ? ' · random ±2 min' : '') } :
+      ev.type === 'backstab_window' ? { cls:'bs', label:'Backstab', time:ev.from + ' → ' + ev.to } :
+      ev.type === 'hotspot' ? { cls:'as', label:'Assault', time:ev.target + ' · ore ' + ev.fromHour + '–' + ev.toHour } :
+      { cls:'ar', label:'AR', time:ev.from + ' → ' + ev.to };
+    row.innerHTML = '<span class="daily-badge '+meta.cls+'">'+meta.label+'</span><span class="daily-time">'+meta.time+'</span><button class="daily-event-del" type="button">×</button>';
     row.querySelector('button').onclick = function(){ _fData.dailyCptPlan.events.splice(idx,1); renderDailyPlannerAway(); };
     list.appendChild(row);
   });
 }
-function dailyAwayAddPb() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'pb_'+Date.now(), type:'point_blank', at: document.getElementById('sc-daily-pb-at').value || '00:00:00', queue:'RFY' }); renderDailyPlannerAway(); }
+function dailyAwayAddPb() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; var randomize=!!document.getElementById('sc-daily-pb-random').checked; _fData.dailyCptPlan.events.push({ id:'pb_'+Date.now(), type:'point_blank', at: document.getElementById('sc-daily-pb-at').value || '00:00:00', queue:'RFY', randomize:randomize, randomBeforeSec:randomize?120:0, randomAfterSec:randomize?120:0 }); renderDailyPlannerAway(); }
 function dailyAwayAddAr() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'ar_'+Date.now(), type:'ar_window', from: document.getElementById('sc-daily-ar-from').value || '00:58:00', to: document.getElementById('sc-daily-ar-to').value || '01:03:00', queue:'RFY' }); renderDailyPlannerAway(); }
+function dailyAwayAddBackstab() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; _fData.dailyCptPlan.events.push({ id:'backstab_'+Date.now(), type:'backstab_window', from:document.getElementById('sc-daily-bs-from').value || '00:58:00', to:document.getElementById('sc-daily-bs-to').value || '01:03:00', queue:'RFY' }); renderDailyPlannerAway(); }
+function dailyAwayAddAssault() { if (!_fData) return; if (!_fData.dailyCptPlan) _fData.dailyCptPlan = { enabled:false, events:[] }; var fromHour=parseInt(document.getElementById('sc-daily-assault-from').value,10)||0; var toHour=parseInt(document.getElementById('sc-daily-assault-to').value,10)||fromHour; _fData.dailyCptPlan.events.push({ id:'assault_'+Date.now(), type:'hotspot', target:document.getElementById('sc-daily-assault-at').value || '02:00:00', fromHour:fromHour, toHour:Math.max(fromHour,toHour), profile:'surgical_night', queue:'RFY' }); renderDailyPlannerAway(); }
 function dailyAwayClear() { if (_fData) { _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:[] }; renderDailyPlannerAway(); } }
 function dailyAwayPresetHourlyPb() { if (!_fData) return; var events=[]; for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); _fData.dailyCptPlan = { enabled: !!(_fData && _fData.dailyCptPlan && _fData.dailyCptPlan.enabled), events:events }; renderDailyPlannerAway(); }
 function dailyAwayPresetArAroundPb() { if (!_fData) return; var p = normalizeDailyAwayPlan(_fData.dailyCptPlan || {}); var events = p.events.filter(function(ev){ return ev.type === 'point_blank'; }).slice(); if (!events.length) { for(var h=0; h<24; h++) events.push({ id:'pb_'+h, type:'point_blank', at:dailyAwayPad2(h)+':00:00', queue:'RFY' }); } var pre = parseInt(document.getElementById('sc-pre').value) || 2, post = parseInt(document.getElementById('sc-post').value) || 10; events.filter(function(ev){ return ev.type === 'point_blank'; }).forEach(function(ev, idx){ var at = dailyAwayTimeToMin(ev.at); events.push({ id:'ar_pb_'+idx, type:'ar_window', from:dailyAwayMinToTime(at-pre), to:dailyAwayMinToTime(at+post), queue:'RFY' }); }); _fData.dailyCptPlan = { enabled:p.enabled, events:events }; renderDailyPlannerAway(); }
@@ -1378,7 +1532,9 @@ function populateSchedulerForm() {
   if (!_fData) return;
   var cpt = _fData.arScheduleCpt    || {};
   var hou = _fData.arScheduleHourly || {};
-  var man = hou.manual || {};
+  var manByQueue = hou.manualByQueue || {};
+  var manAfa = manByQueue.AFA || hou.manual || {};
+  var manAi = manByQueue.AI || {};
   var cptIsActive = cpt.active === true;
   var cptState = document.getElementById('sc-active-state'); if (cptState) cptState.textContent = cptIsActive ? 'Attivo - gestione nel tab Bot' : 'Disattivo - gestione nel tab Bot';
   document.getElementById('sc-start').value       = cpt.startTime    || '01:00';
@@ -1393,9 +1549,13 @@ function populateSchedulerForm() {
   document.getElementById('sc-h-pre').value       = hou.preMinutes   != null ? hou.preMinutes   : 3;
   document.getElementById('sc-h-jitter').value    = hou.jitterSec    != null ? hou.jitterSec    : 90;
   document.getElementById('sc-h-nodrop').value    = hou.noDropOffMin != null ? hou.noDropOffMin : 5;
-  var manualState = document.getElementById('sc-m-state'); if (manualState) manualState.textContent = man.enabled ? 'Attivo - gestione nel tab Bot' : 'Disattivo - gestione nel tab Bot';
-  document.getElementById('sc-m-min').value       = man.minute       != null ? man.minute       : '';
-  document.getElementById('sc-m-dur').value       = man.durationMin  != null ? man.durationMin  : 5;
+  var manualState = document.getElementById('sc-m-state'); if (manualState) manualState.textContent = (manAfa.enabled || manAi.enabled) ? 'Almeno un pattern attivo' : 'Pattern disattivati';
+  document.getElementById('sc-m-afa-enabled').checked = !!manAfa.enabled;
+  document.getElementById('sc-m-afa-min').value = manAfa.minute != null ? manAfa.minute : '';
+  document.getElementById('sc-m-afa-dur').value = manAfa.durationMin != null ? manAfa.durationMin : 5;
+  document.getElementById('sc-m-ai-enabled').checked = !!manAi.enabled;
+  document.getElementById('sc-m-ai-min').value = manAi.minute != null ? manAi.minute : '';
+  document.getElementById('sc-m-ai-dur').value = manAi.durationMin != null ? manAi.durationMin : 5;
   renderDailyPlannerAway();
   refreshDailyAwayPresets();
 }
@@ -1405,6 +1565,9 @@ function saveScheduler() {
   if (!_fData.arScheduleCpt)    _fData.arScheduleCpt    = {};
   if (!_fData.arScheduleHourly) _fData.arScheduleHourly = {};
   if (!_fData.arScheduleHourly.manual) _fData.arScheduleHourly.manual = {};
+  if (!_fData.arScheduleHourly.manualByQueue) _fData.arScheduleHourly.manualByQueue = {};
+  if (!_fData.arScheduleHourly.manualByQueue.AFA) _fData.arScheduleHourly.manualByQueue.AFA = {};
+  if (!_fData.arScheduleHourly.manualByQueue.AI) _fData.arScheduleHourly.manualByQueue.AI = {};
   var cptMode = getCptAwayActionMode();
   _fData.arScheduleCpt.startTime   = document.getElementById('sc-start').value || '01:00';
   _fData.arScheduleCpt.repeatHours = parseInt(document.getElementById('sc-repeat').value)  || 8;
@@ -1418,12 +1581,16 @@ function saveScheduler() {
   _fData.arScheduleHourly.preMinutes   = parseInt(document.getElementById('sc-h-pre').value)    || 0;
   _fData.arScheduleHourly.jitterSec    = parseInt(document.getElementById('sc-h-jitter').value) || 0;
   _fData.arScheduleHourly.noDropOffMin = parseInt(document.getElementById('sc-h-nodrop').value) || 0;
-  _fData.arScheduleHourly.manual.enabled     = !!_fData.arScheduleHourly.manual.enabled;
-  var minVal = document.getElementById('sc-m-min').value;
-  _fData.arScheduleHourly.manual.minute      = minVal !== '' ? parseInt(minVal) : null;
-  _fData.arScheduleHourly.manual.durationMin = parseInt(document.getElementById('sc-m-dur').value) || 5;
+  var afaMinVal = document.getElementById('sc-m-afa-min').value;
+  _fData.arScheduleHourly.manualByQueue.AFA.enabled = document.getElementById('sc-m-afa-enabled').checked;
+  _fData.arScheduleHourly.manualByQueue.AFA.minute = afaMinVal !== '' ? parseInt(afaMinVal,10) : null;
+  _fData.arScheduleHourly.manualByQueue.AFA.durationMin = parseInt(document.getElementById('sc-m-afa-dur').value,10) || 5;
+  var aiMinVal = document.getElementById('sc-m-ai-min').value;
+  _fData.arScheduleHourly.manualByQueue.AI.enabled = document.getElementById('sc-m-ai-enabled').checked;
+  _fData.arScheduleHourly.manualByQueue.AI.minute = aiMinVal !== '' ? parseInt(aiMinVal,10) : null;
+  _fData.arScheduleHourly.manualByQueue.AI.durationMin = parseInt(document.getElementById('sc-m-ai-dur').value,10) || 5;
   _fData.dailyCptPlan = readDailyAwayPlan();
-  patchGistAndPull(document.getElementById('sched-save-btn'), 'sched-status-bar');
+  patchGistAndPull(document.getElementById('sched-save-btn'), 'sched-status-bar', 'scheduler');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1433,11 +1600,20 @@ function renderFilters() {
   if (!_fData) return;
   var bl    = _fData.blacklist     || { enabled:false, list:[] };
   var bletv = _fData.blacklistEtv  || { enabled:false, maxEtv:0 };
+  var qf    = _fData.queueFilter   || { enabled:true, queues:{ CPT:true, DPT:true, AA:true }, priority:false };
+  qf.queues = qf.queues || { CPT:true, DPT:true, AA:true };
   var br    = _fData.brands        || { enabled:false, list:[] };
   var ar    = _fData.advancedRules || { enabled:true,  rules:[] };
   document.getElementById('f-bl-enabled').checked     = !!bl.enabled;
   document.getElementById('f-bletv-enabled').checked  = !!bletv.enabled;
   document.getElementById('f-bletv-max').value         = bletv.maxEtv != null ? bletv.maxEtv : '';
+  document.getElementById('f-bletv-wait').checked      = !!bletv.waitMissingEtv;
+  document.getElementById('f-bletv-priority').checked  = !!bletv.priority;
+  document.getElementById('f-queue-enabled').checked   = qf.enabled !== false;
+  document.getElementById('f-queue-cpt').checked       = qf.queues.CPT !== false;
+  document.getElementById('f-queue-dpt').checked       = qf.queues.DPT !== false;
+  document.getElementById('f-queue-aa').checked        = qf.queues.AA !== false;
+  document.getElementById('f-queue-priority').checked  = !!qf.priority;
   document.getElementById('f-brands-enabled').checked = !!br.enabled;
   document.getElementById('f-rules-enabled').checked  = ar.enabled !== false;
   bl.list = sortTextList(bl.list || []);
@@ -1549,11 +1725,20 @@ function collectFilterData() {
   if (!_fData) return;
   if (!_fData.blacklist)    _fData.blacklist={};
   if (!_fData.blacklistEtv) _fData.blacklistEtv={};
+  if (!_fData.queueFilter)  _fData.queueFilter={};
+  if (!_fData.queueFilter.queues) _fData.queueFilter.queues={};
   if (!_fData.brands)       _fData.brands={};
   if (!_fData.advancedRules) _fData.advancedRules={rules:[]};
   _fData.blacklist.enabled    = document.getElementById('f-bl-enabled').checked;
   _fData.blacklistEtv.enabled = document.getElementById('f-bletv-enabled').checked;
   _fData.blacklistEtv.maxEtv  = parseFloat(document.getElementById('f-bletv-max').value)||0;
+  _fData.blacklistEtv.waitMissingEtv = document.getElementById('f-bletv-wait').checked;
+  _fData.blacklistEtv.priority = document.getElementById('f-bletv-priority').checked;
+  _fData.queueFilter.enabled = document.getElementById('f-queue-enabled').checked;
+  _fData.queueFilter.queues.CPT = document.getElementById('f-queue-cpt').checked;
+  _fData.queueFilter.queues.DPT = document.getElementById('f-queue-dpt').checked;
+  _fData.queueFilter.queues.AA = document.getElementById('f-queue-aa').checked;
+  _fData.queueFilter.priority = document.getElementById('f-queue-priority').checked;
   _fData.brands.enabled       = document.getElementById('f-brands-enabled').checked;
   _fData.advancedRules.enabled = document.getElementById('f-rules-enabled').checked;
   (_fData.advancedRules.rules||[]).forEach(function(_,i){ ruleFieldChanged(i); });
@@ -1562,7 +1747,7 @@ function collectFilterData() {
   _fData.advancedRules.rules = sortRules(_fData.advancedRules.rules || []);
 }
 
-function saveFilters() { if (!_fData) return; collectFilterData(); patchGistAndPull(document.getElementById('f-save-btn'),'f-status-bar'); }
+function saveFilters() { if (!_fData) return; collectFilterData(); patchGistAndPull(document.getElementById('f-save-btn'),'f-status-bar','filters'); }
 
 /* ══════════════════════════════════════════════════════════════
    FIREBASE — Drops

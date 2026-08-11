@@ -1,0 +1,8 @@
+{
+  "name": "pcu-away",
+  "private": true,
+  "version": "1.23.0",
+  "scripts": {
+    "test": "node smoke-test.cjs && node --check sw.js"
+  }
+}
