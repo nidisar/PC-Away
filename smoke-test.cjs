@@ -20,7 +20,8 @@ const required = [
   'resetLiveFeedSession', 'manualByQueue', 'queueFilter', 'waitMissingEtv',
   'backstab_window', 'hotspot', 'Attendo PCU', "'PATCH', configPatch",
   '/pcu_v2/confirmed_orders.json', "row.origin === 'remote_ntfy'",
-  '_fbAuthPromise', 'fetchWithTimeout', 'waitForFreshPcuStatus', '_cloudLoaded'
+  '_fbAuthPromise', 'fetchWithTimeout', 'waitForFreshPcuStatus', '_cloudLoaded',
+  'applyOptimisticCommandState', "join(',')+'/json?poll=0'", "if(t.key==='cmd')parseBotStato(msg)"
 ];
 for (const token of required) {
   if (!html.includes(token)) throw new Error('Contratto mancante: ' + token);
@@ -28,7 +29,7 @@ for (const token of required) {
 const forbidden = [
   'preloadNtfyHistory', 'FEED_BOOTSTRAP_LIMIT', 'SSEID_KEY', 'loadFeedSeen',
   'saveFeedSeen', 'since=10m', "fbDbUrl(path, null)", '6 * 60 * 60 * 1000',
-  'Stato bot in caricamento dallo storico'
+  'Stato bot in caricamento dallo storico', 'poll=1&since='
 ];
 for (const token of forbidden) {
   if (html.includes(token)) throw new Error('Codice obsoleto ancora presente: ' + token);

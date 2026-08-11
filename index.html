@@ -286,7 +286,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.24</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.25</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -301,7 +301,7 @@
 
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
-    <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this);refreshLivePcuStatus()"><span class="ticon">🎮</span>Bot</button>
+    <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this);loadPcuStatus()"><span class="ticon">🎮</span>Bot</button>
     <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);refreshCfgFromPcu()"><span class="ticon">⏰</span>Sched</button>
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
     <button id="tab-btn-drops"                    onclick="switchTab('drops',this);loadDrops()">   <span class="ticon">📋</span>Drops</button>
@@ -822,12 +822,8 @@ function loadHaulSummary() {
    SSE — Feed
    ══════════════════════════════════════════════════════════════ */
 var _sseAborts = [];
-var _feedSessionStartedSec = 0;
 
 function resetLiveFeedSession() {
-  /* ntfy usa secondi interi: il secondo successivo evita anche un messaggio
-     pubblicato pochi millisecondi prima dell'apertura. */
-  _feedSessionStartedSec = Math.floor(Date.now() / 1000) + 1;
   _feedSeen = {};
   _orderActions = {};
   _pendingOrders = {};
@@ -839,46 +835,48 @@ function stopSSE() {
   setConnDot('off');
 }
 
-/* Feed esclusivamente live. Poll brevi affidabili anche sulle PWA mobili:
-   il cursore nasce in questa sessione e non viene mai salvato. */
-function startSSE(freshConnection) {
+/* Un'unica connessione live per tutti i topic. poll=0 senza since non recupera
+   alcun messaggio precedente e non sovraccarica ntfy con polling ripetuti. */
+function startSSE() {
   stopSSE();
   setFeedBootstrapState();
   var topics = configuredTopics();
   if (!topics.length) { setConnDot('off'); return; }
-  var okCount = 0;
-  topics.forEach(function(t) {
-    var ac = new AbortController(); _sseAborts.push(ac);
-    var cursor = String(Math.max(_feedSessionStartedSec, Math.floor(Date.now()/1000)+1));
-    (function poll(delay) {
-      if (ac.signal.aborted) return;
-      setTimeout(function() {
-        if (ac.signal.aborted || document.visibilityState === 'hidden') return;
-        var url = NTFY_BASE + '/' + t.id.trim() + '/json?poll=1&since=' + encodeURIComponent(cursor);
-        var headers = {}; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
-        fetch(url, { signal:ac.signal, headers:headers, cache:'no-store' })
-          .then(function(res) {
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            if (!okCount) setConnDot('green'); okCount=1;
-            return res.text();
-          }).then(function(text) {
-            var newestId='';
-            String(text||'').split('\n').forEach(function(line) {
+  var byId={}; topics.forEach(function(t){ byId[t.id.trim()]=t; });
+  var ac=new AbortController(); _sseAborts.push(ac);
+  (function connect(delay) {
+    if(ac.signal.aborted)return;
+    setTimeout(function(){
+      if(ac.signal.aborted || document.visibilityState==='hidden')return;
+      var ids=Object.keys(byId);
+      var url=NTFY_BASE+'/'+ids.map(encodeURIComponent).join(',')+'/json?poll=0';
+      var headers={}; if(cfg.token)headers.Authorization='Bearer '+cfg.token.trim();
+      fetch(url,{signal:ac.signal,headers:headers,cache:'no-store'}).then(function(res){
+        if(!res.ok)throw new Error('HTTP '+res.status);
+        setConnDot('green');
+        var reader=res.body.getReader(), dec=new TextDecoder(), buffer='';
+        function pump(){
+          reader.read().then(function(chunk){
+            if(chunk.done){setConnDot('red'); if(!ac.signal.aborted)connect(3000); return;}
+            buffer+=dec.decode(chunk.value,{stream:true});
+            var lines=buffer.split('\n'); buffer=lines.pop()||'';
+            lines.forEach(function(line){
               line=line.trim(); if(!line)return;
-              try {
-                var msg=JSON.parse(line);
-                if (msg.id) newestId=msg.id;
-                if (msg.event!=='message' || Number(msg.time||0)<_feedSessionStartedSec) return;
+              try{
+                var msg=JSON.parse(line); if(msg.event!=='message')return;
+                var t=byId[msg.topic] || (topics.length===1?topics[0]:null); if(!t)return;
                 addFeedItem(msg,t.key,t.label);
                 parseHaulFromText(msg.message||'');
-              } catch(e) {}
+                if(t.key==='cmd')parseBotStato(msg);
+              }catch(e){}
             });
-            if (newestId) cursor=newestId;
-            if(!ac.signal.aborted)poll(3000);
-          }).catch(function(){ if(!ac.signal.aborted){ setConnDot('red'); poll(Math.min((delay||1500)*2,15000)); } });
-      }, delay||0);
-    }(0));
-  });
+            pump();
+          }).catch(function(e){if(e&&e.name==='AbortError')return; setConnDot('red'); if(!ac.signal.aborted)connect(5000);});
+        }
+        pump();
+      }).catch(function(e){if(e&&e.name==='AbortError')return; setConnDot('red'); if(!ac.signal.aborted)connect(Math.min((delay||1500)*2,15000));});
+    },delay||0);
+  }(0));
 }
 
 function setConnDot(state) {
@@ -1039,22 +1037,49 @@ function setActiveMode(mode) {
 }
 function labelToMode(s) { s = s || ''; if (s.indexOf('Full Auto') !== -1) return 'fullauto'; if (s.indexOf('Remoto') !== -1) return 'remoto'; return 'presidio'; }
 
+function captureBotVisualState() {
+  var state={ keys:{}, mode:null };
+  document.querySelectorAll('[data-state-key]').forEach(function(btn){state.keys[btn.getAttribute('data-state-key')]=btn.classList.contains('state-on');});
+  document.querySelectorAll('.mode-btn').forEach(function(btn){if(btn.classList.contains('state-on'))state.mode=btn.getAttribute('data-mode');});
+  return state;
+}
+function restoreBotVisualState(state) {
+  if(!state)return;
+  updateBtnStates(state.keys||{});
+  if(state.mode)setActiveMode(state.mode);
+}
+function applyOptimisticCommandState(cmd) {
+  if(_MODES.indexOf(cmd)!==-1){setActiveMode(cmd);return;}
+  var sk=_cmdStateMap[cmd];
+  if(sk){
+    var btn=document.querySelector('[data-state-key="'+sk+'"]');
+    if(btn){var next=!btn.classList.contains('state-on'); updateBtnStates((function(){var x={};x[sk]=next;return x;}()));
+      if(next&&sk==='sched-rfy')updateBtnStates({'daily-rfy':false});
+      if(next&&sk==='daily-rfy')updateBtnStates({'sched-rfy':false});
+    }
+  }
+  if(cmd==='ar off')updateBtnStates({'ar-rfy':false,'ar-afa':false,'ar-ai':false});
+  if(cmd==='disattiva'){
+    var all={}; document.querySelectorAll('[data-state-key]').forEach(function(b){all[b.getAttribute('data-state-key')]=false;}); updateBtnStates(all);
+  }
+  if(cmd==='avvia')updateBtnStates({'armed':true,'sched-rfy':true,'daily-rfy':false,'det-aadpt':true,'sched-aadpt':true});
+}
+
 function sendCmd(cmd) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
   if (!topic) { showCmdFeedback('⚠️ Topic comandi non configurato', true); return; }
-  // Stato Bot live-only: nessun toggle ottimistico locale.
-  // Dopo il comando chiediamo a PCU lo stato reale e aggiorniamo i pulsanti da /pcu_status.
+  var previous=captureBotVisualState();
+  applyOptimisticCommandState(cmd);
   var headers = { 'Content-Type': 'text/plain' }; if (cfg.token) headers['Authorization'] = 'Bearer ' + cfg.token.trim();
   showCmdFeedback('⏳ Invio "'+cmd+'" a PCU...',false);
   fetchWithTimeout(NTFY_BASE + '/' + topic, { method:'POST', headers:headers, body:cmd }, 8000)
     .then(function(r){
       if (!r.ok) throw new Error('HTTP '+r.status);
-      showCmdFeedback('⏳ "'+cmd+'" inviato: attendo conferma live da PCU...',false);
-      return new Promise(function(resolve){ setTimeout(resolve, 1200); });
+      showCmdFeedback('✅ "'+cmd+'" inviato a PCU',false);
+      setTimeout(loadPcuStatus,2500);
+      setTimeout(loadPcuStatus,6000);
     })
-    .then(function(){ return refreshLivePcuStatus(true); })
-    .then(function(){ showCmdFeedback('✅ PCU ha confermato lo stato aggiornato',false); })
-    .catch(function(e){ showCmdFeedback('❌ '+(e.message||'Comando non confermato'),true); });
+    .catch(function(e){restoreBotVisualState(previous);showCmdFeedback('❌ '+(e.message||'Invio comando fallito'),true);});
 }
 
 function setBtnTextByKey(key, text) {
