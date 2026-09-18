@@ -26,7 +26,7 @@ const required = [
   'tab-btn-plan', 'plan-v-canvas', 'DAILY_PLAN_ZOOMS',
   'schedulerConfigSubset', 'planConfigSubset', 'saveDailyPlan',
   'dailyPlanApplySignature', 'waitForDailyPlanApplied', 'applySavedConfigToPcu',
-  'filterApplySignature', 'waitForFiltersApplied', "action:'applyFilterConfig'", 'filterApplyId',
+  'filterApplySignature', 'waitForFiltersApplied',
   'Planner salvato e applicato: confermato da PCU', "action:'applyDailyCptPlan'", "replyTopic:(cfg.topicCmd || '').trim()",
   "pull-firebase-config planner:", "waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+10000, sent && sent.applyId)"
 ];
@@ -56,11 +56,10 @@ if (!html.includes("'/pcu_command_results/'+applyId")) throw new Error('Conferma
 if (!html.includes("target:minute,from:minute")) throw new Error('Assault deve conservare il target durante il tap');
 if (!html.includes('capturePlannerNtfyResult')) throw new Error('Away deve intercettare la conferma planner ntfy');
 if (!html.includes('PCU_PLANNER_APPLIED:')) throw new Error('Protocollo ntfy planner mancante');
-if (!html.includes('Filtri salvati e applicati: confermato da PCU')) throw new Error('Conferma reale filtri mancante');
-if (!html.includes('Nessun ack diretto. Chiedo a PCU di rileggere e confermare i filtri')) throw new Error('Fallback filtri ntfy mancante');
-if (!html.includes("waitForFiltersApplied(configPatch, Date.now()+15000")) throw new Error('Verifica filtri dopo fallback ntfy mancante');
-if (!html.includes("sendPullFirebaseConfig(statusBarId, sent && sent.applyId)")) throw new Error('Fallback filtri deve usare l’ack con ID già usato dal Plan');
-if (!html.includes("status.plannerApplyId === applyId")) throw new Error('Ack compatibile filtri da PCU mancante');
+if (!html.includes('Filtri salvati su Firebase e richiesta applicazione inviata a PCU')) throw new Error('Esito filtri coerente con Sched mancante');
+if (!html.includes('⏳ Salvataggio su Firebase e invio a PCU')) throw new Error('Feedback immediato salvataggio mancante');
+const filterApplyBlock = match[1].slice(match[1].indexOf('function applySavedConfigToPcu'), match[1].indexOf('SCHEDULER', match[1].indexOf('function applySavedConfigToPcu')));
+if (!filterApplyBlock.includes("if (scope !== 'plan') return true")) throw new Error('Filtri e Sched devono condividere il percorso apply immediato');
 if (!html.includes('class="section-title">🎯 Seleziona Coda')) throw new Error('Icona Seleziona Coda mancante');
 if (!html.includes('.f-queue-options')) throw new Error('Layout compatto code mancante');
 if (!html.includes('canonicalRules')) throw new Error('Confronto semantico filtri mancante');
