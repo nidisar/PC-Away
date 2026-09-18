@@ -26,6 +26,7 @@ const required = [
   'tab-btn-plan', 'plan-v-canvas', 'DAILY_PLAN_ZOOMS',
   'schedulerConfigSubset', 'planConfigSubset', 'saveDailyPlan',
   'dailyPlanApplySignature', 'waitForDailyPlanApplied', 'applySavedConfigToPcu',
+  'filterApplySignature', 'waitForFiltersApplied', "action:'applyFilterConfig'", 'filterApplyId',
   'Planner salvato e applicato: confermato da PCU', "action:'applyDailyCptPlan'", "replyTopic:(cfg.topicCmd || '').trim()",
   "pull-firebase-config planner:", "waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+10000, sent && sent.applyId)"
 ];
@@ -55,6 +56,10 @@ if (!html.includes("'/pcu_command_results/'+applyId")) throw new Error('Conferma
 if (!html.includes("target:minute,from:minute")) throw new Error('Assault deve conservare il target durante il tap');
 if (!html.includes('capturePlannerNtfyResult')) throw new Error('Away deve intercettare la conferma planner ntfy');
 if (!html.includes('PCU_PLANNER_APPLIED:')) throw new Error('Protocollo ntfy planner mancante');
+if (!html.includes('Filtri salvati e applicati: confermato da PCU')) throw new Error('Conferma reale filtri mancante');
+if (!html.includes("filters && Object.keys(filters).length")) throw new Error('I filtri cloud devono prevalere sullo stato live obsoleto');
+if (!html.includes('function reconcileBotCommandState')) throw new Error('Riconciliazione stato Bot mancante');
+if (!html.includes("window.addEventListener('pageshow'")) throw new Error('Ripristino app da background mancante');
 
 const ntfyAckStart = match[1].indexOf('var _plannerNtfyResults');
 const ntfyAckEnd = match[1].indexOf('function isTechnicalFeedMessage', ntfyAckStart);

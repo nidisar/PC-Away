@@ -330,7 +330,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.33</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -345,7 +345,7 @@
 
   <div class="tabbar">
     <button class="active" id="tab-btn-feed"      onclick="switchTab('feed',this)">               <span class="ticon">📡</span>Feed</button>
-    <button id="tab-btn-cmds"                     onclick="switchTab('cmds',this);loadPcuStatus()"><span class="ticon">🎮</span>Bot</button>
+    <button id="tab-btn-cmds"                     onclick="openBotTab(this)"><span class="ticon">🎮</span>Bot</button>
     <button id="tab-btn-scheduler"                onclick="switchTab('scheduler',this);loadCfgCloud(true)"><span class="ticon">⏰</span>Sched</button>
     <button id="tab-btn-plan"                     onclick="switchTab('plan',this);loadCfgCloud(true)"><span class="ticon">📅</span>Plan</button>
     <button id="tab-btn-filters"                  onclick="switchTab('filters',this);loadCfgCloud(true)"> <span class="ticon">🎯</span>Filtri</button>
@@ -701,13 +701,22 @@ function initApp() {
     if (document.visibilityState === 'visible') refreshStartupData(false);
     else stopSSE();
   });
+  window.addEventListener('pageshow', function() { if (document.visibilityState === 'visible') refreshStartupData(false); });
+  window.addEventListener('online', function() { if (document.visibilityState === 'visible') refreshStartupData(false); });
 }
 
 var _lastStatusRequestAt = 0;
 function refreshStartupData(initial) {
   startSSE(true);
-  if (!initial) return;
   loadPcuStatus();
+  if (!initial) {
+    var botPanel = document.getElementById('tab-cmds');
+    if (botPanel && botPanel.classList.contains('active') && Date.now() - _lastStatusRequestAt > 3000) {
+      _lastStatusRequestAt = Date.now();
+      refreshLivePcuStatus(true).catch(function(){});
+    }
+    return;
+  }
   if (Date.now() - _lastStatusRequestAt > 15000) {
     _lastStatusRequestAt = Date.now();
     refreshLivePcuStatus(true).catch(function(){});
@@ -729,6 +738,14 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tabbar button').forEach(function(b) { b.classList.remove('active'); });
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
+}
+function openBotTab(btn) {
+  switchTab('cmds', btn);
+  loadPcuStatus();
+  if (Date.now() - _lastStatusRequestAt > 1500) {
+    _lastStatusRequestAt = Date.now();
+    refreshLivePcuStatus(true).catch(function(){});
+  }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1139,8 +1156,20 @@ function sendCmd(cmd) {
     .then(function(r){
       if (!r.ok) throw new Error('HTTP '+r.status);
       showCmdFeedback('✅ "'+cmd+'" inviato a PCU',false);
+      reconcileBotCommandState();
     })
     .catch(function(e){restoreBotVisualState(previous);showCmdFeedback('❌ '+(e.message||'Invio comando fallito'),true);});
+}
+
+var _botReconcileTimers=[];
+function reconcileBotCommandState() {
+  _botReconcileTimers.forEach(function(timer){ clearTimeout(timer); });
+  _botReconcileTimers = [1200, 4500].map(function(delay) {
+    return setTimeout(function() {
+      _lastStatusRequestAt = Date.now();
+      refreshLivePcuStatus(true).catch(function(){});
+    }, delay);
+  });
 }
 
 function setBtnTextByKey(key, text) {
@@ -1333,7 +1362,7 @@ function loadCfgCloud(force) {
       throw new Error('Configurazione PCU non disponibile su Firebase');
     }
     var data = Object.assign({}, remoteCfg || {}, liveCfg || {});
-    if (!liveCfg && filters && Object.keys(filters).length) {
+    if (filters && Object.keys(filters).length) {
       data.etv = filters.etv || data.etv;
       data.brands = filters.brands || data.brands;
       data.blacklist = filters.blacklist || data.blacklist;
@@ -1420,7 +1449,8 @@ function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
     return applySavedConfigToPcu(scope, configPatch, statusBarId);
   }).then(function() {
     _fData = payload; _fData._cloudLoaded = true; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
-    setBarStatus(statusBarId,scope === 'plan' ? '✅ Planner salvato e applicato: confermato da PCU' : '✅ Salvato su Firebase e comando apply inviato a PCU','ok');
+    var successMessage = scope === 'plan' ? '✅ Planner salvato e applicato: confermato da PCU' : scope === 'filters' ? '✅ Filtri salvati e applicati: confermato da PCU' : '✅ Salvato su Firebase e comando apply inviato a PCU';
+    setBarStatus(statusBarId,successMessage,'ok');
     setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
   }).catch(function(e) {
     saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
@@ -1486,11 +1516,18 @@ function requestPcuHaulViaNtfy() {
 }
 
 function sendApplyConfigCommands(statusBarId, scope, configPatch) {
-  var applyId = scope === 'plan' ? ('planner_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)) : '';
-  var command = scope === 'plan' ? { action:'applyDailyCptPlan', applyId:applyId, replyTopic:(cfg.topicCmd || '').trim(), plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' } : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
+  var applyId = scope === 'plan' ? ('planner_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)) : scope === 'filters' ? ('filters_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)) : '';
+  var command = scope === 'plan'
+    ? { action:'applyDailyCptPlan', applyId:applyId, replyTopic:(cfg.topicCmd || '').trim(), plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' }
+    : scope === 'filters'
+      ? { action:'applyFilterConfig', applyId:applyId, filters:filterConfigSubset(configPatch), configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' }
+      : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
   return fbDbWrite('/pcu_commands', 'POST', command)
     .then(function(){ return { applyId:applyId }; })
-    .catch(function(){ return sendPullFirebaseConfig(statusBarId, applyId).then(function(){ return { applyId:applyId }; }); });
+    .catch(function(error){
+      if (scope === 'filters') throw error;
+      return sendPullFirebaseConfig(statusBarId, applyId).then(function(){ return { applyId:applyId }; });
+    });
 }
 function sendPullFirebaseConfig(statusBarId, plannerApplyId) {
   var topic = cfg.topicCmd ? cfg.topicCmd.trim() : '';
@@ -1504,6 +1541,37 @@ function dailyPlanApplySignature(plan) {
   var normalized = normalizeDailyAwayPlan(plan || {});
   var events = normalized.events.slice().sort(function(a,b){ return JSON.stringify(a).localeCompare(JSON.stringify(b)); });
   return JSON.stringify({ enabled:!!normalized.enabled, events:events });
+}
+function filterApplySignature(data) {
+  var normalized = normalizeRemoteConfig(data || {});
+  return JSON.stringify({
+    etv:normalized.etv || null,
+    brands:normalized.brands,
+    blacklist:normalized.blacklist,
+    blacklistEtv:normalized.blacklistEtv,
+    queueFilter:normalized.queueFilter,
+    advancedRules:normalized.advancedRules,
+    categoryWhitelist:normalized.categoryWhitelist || null,
+    categoryBlacklist:normalized.categoryBlacklist || null
+  });
+}
+function waitForFiltersApplied(expectedFilters, deadline, applyId) {
+  var resultRead = applyId ? fbDbRead('/pcu_command_results/'+applyId).catch(function(){ return null; }) : Promise.resolve(null);
+  return resultRead.then(function(result) {
+    if (result && result.ok === true) {
+      fbDbRequest('/pcu_command_results/'+applyId, { method:'DELETE' }).catch(function(){});
+      return { filterApplyId:applyId, confirmed:true };
+    }
+    if (result && result.ok === false) throw new Error(result.error || 'PCU ha rifiutato i filtri');
+    return fbDbRead('/pcu_status');
+  }).then(function(status) {
+    var applied = status && status.config;
+    if (applyId && status && status.filterApplyId === applyId) return status;
+    if (applied && filterApplySignature(applied) === filterApplySignature(expectedFilters)) return status;
+    if (Date.now() >= deadline) throw new Error('PCU non ha confermato i nuovi filtri');
+    return new Promise(function(resolve){ setTimeout(resolve, 1200); })
+      .then(function(){ return waitForFiltersApplied(expectedFilters, deadline, applyId); });
+  });
 }
 function waitForDailyPlanApplied(expectedPlan, deadline, applyId) {
   var ntfyResult = applyId && _plannerNtfyResults[applyId];
@@ -1531,6 +1599,12 @@ function waitForDailyPlanApplied(expectedPlan, deadline, applyId) {
 }
 function applySavedConfigToPcu(scope, configPatch, statusBarId) {
   return sendApplyConfigCommands(statusBarId, scope, configPatch).then(function(sent) {
+    if (scope === 'filters') {
+      setBarStatus(statusBarId,'⏳ Filtri salvati su Firebase. Attendo conferma da PCU…','');
+      return waitForFiltersApplied(configPatch, Date.now()+12000, sent && sent.applyId).catch(function(e) {
+        throw new Error('Filtri salvati su Firebase, ma non applicati a PCU: '+(e.message||'nessuna conferma'));
+      });
+    }
     if (scope !== 'plan') return true;
     setBarStatus(statusBarId,'⏳ Salvato su Firebase. Attendo conferma da PCU…','');
     return waitForDailyPlanApplied(configPatch.dailyCptPlan, Date.now()+6000, sent && sent.applyId).catch(function() {
