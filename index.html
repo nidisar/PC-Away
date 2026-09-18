@@ -232,6 +232,15 @@
     .f-etv-input { width: 90px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-size: 14px; outline: none; text-align: right; }
     .f-etv-input:focus { border-color: var(--accent); }
 
+    .f-filter-options { display: grid; gap: 8px; margin-top: 10px; }
+    .f-check-row { display: grid; grid-template-columns: 18px minmax(0,1fr); align-items: start; gap: 8px; color: var(--text); font-size: 12px; line-height: 1.35; cursor: pointer; }
+    .f-check-row input[type=checkbox] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+    .f-check-row span { min-width: 0; }
+    .f-queue-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+    .f-queue-options .f-check-row { align-items: center; padding: 8px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2); font-weight: 700; }
+    .f-section .f-hint { line-height: 1.4; }
+    @media (max-width:380px) { .f-etv-row { display:grid; grid-template-columns:minmax(0,1fr) 92px; }.f-etv-label{white-space:normal;} }
+
     /* Regole avanzate */
     .f-rules-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
     .f-rule-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
@@ -330,7 +339,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34.1</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34.2</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -544,18 +553,22 @@
         <div class="f-section">
           <div class="f-section-header"><div class="section-title">💰 Blacklist ETV</div><label class="f-toggle"><input type="checkbox" id="f-bletv-enabled"><div class="f-toggle-track"></div></label></div>
           <div class="f-etv-row"><span class="f-etv-label">Nascondi se ETV ≤ €</span><input class="f-etv-input" id="f-bletv-max" type="number" min="0" step="0.5" placeholder="0"></div>
-          <label class="f-check-row"><input type="checkbox" id="f-bletv-wait"> Se l'ETV manca, attendi l'idratazione prima di decidere</label>
-          <label class="f-check-row"><input type="checkbox" id="f-bletv-priority"> Prioritaria: vince anche su Brand VIP</label>
+          <div class="f-filter-options">
+            <label class="f-check-row"><input type="checkbox" id="f-bletv-wait"><span>Se l'ETV manca, attendi l'idratazione prima di decidere</span></label>
+            <label class="f-check-row"><input type="checkbox" id="f-bletv-priority"><span>Prioritaria: vince anche su Brand VIP</span></label>
+          </div>
         </div>
         <div class="f-section">
-          <div class="f-section-header"><div class="section-title">Seleziona Coda</div><label class="f-toggle"><input type="checkbox" id="f-queue-enabled"><div class="f-toggle-track"></div></label></div>
+          <div class="f-section-header"><div class="section-title">🎯 Seleziona Coda</div><label class="f-toggle"><input type="checkbox" id="f-queue-enabled"><div class="f-toggle-track"></div></label></div>
           <div class="f-hint">Il cecchino automatico parte soltanto per le code selezionate. Ordini manuali, app e ntfy non vengono bloccati.</div>
-          <div class="f-row2">
-            <label class="f-check-row"><input type="checkbox" id="f-queue-cpt"> CPT</label>
-            <label class="f-check-row"><input type="checkbox" id="f-queue-dpt"> DPT</label>
-            <label class="f-check-row"><input type="checkbox" id="f-queue-aa"> AA</label>
+          <div class="f-queue-options">
+            <label class="f-check-row"><input type="checkbox" id="f-queue-cpt"><span>CPT</span></label>
+            <label class="f-check-row"><input type="checkbox" id="f-queue-dpt"><span>DPT</span></label>
+            <label class="f-check-row"><input type="checkbox" id="f-queue-aa"><span>AA</span></label>
           </div>
-          <label class="f-check-row"><input type="checkbox" id="f-queue-priority"> Prioritaria: vince anche su Brand VIP</label>
+          <div class="f-filter-options">
+            <label class="f-check-row"><input type="checkbox" id="f-queue-priority"><span>Prioritaria: vince anche su Brand VIP</span></label>
+          </div>
         </div>
         <div class="f-section">
           <div class="f-section-header"><div class="section-title">⭐ Brand VIP</div><label class="f-toggle"><input type="checkbox" id="f-brands-enabled"><div class="f-toggle-track"></div></label></div>
@@ -1544,15 +1557,23 @@ function dailyPlanApplySignature(plan) {
 }
 function filterApplySignature(data) {
   var normalized = normalizeRemoteConfig(data || {});
+  var canonicalRules = (normalized.advancedRules.rules || []).map(function(rule) {
+    return {
+      enabled:rule.enabled !== false,
+      name:String(rule.name || ''),
+      brand:String(rule.brand || '').trim().toLowerCase(),
+      minEtv:Number(rule.minEtv || 0),
+      maxEtv:Number(rule.maxEtv || 0),
+      positiveKeywords:normalizeRuleKeywords(rule.positiveKeywords != null ? rule.positiveKeywords : rule.keywords).sort(),
+      blacklistKeywords:normalizeRuleKeywords(rule.blacklistKeywords != null ? rule.blacklistKeywords : rule.rejectKeywords).sort()
+    };
+  }).sort(function(a,b){ return JSON.stringify(a).localeCompare(JSON.stringify(b)); });
   return JSON.stringify({
-    etv:normalized.etv || null,
-    brands:normalized.brands,
-    blacklist:normalized.blacklist,
-    blacklistEtv:normalized.blacklistEtv,
-    queueFilter:normalized.queueFilter,
-    advancedRules:normalized.advancedRules,
-    categoryWhitelist:normalized.categoryWhitelist || null,
-    categoryBlacklist:normalized.categoryBlacklist || null
+    brands:{ enabled:!!normalized.brands.enabled, list:sortTextList(normalized.brands.list || []) },
+    blacklist:{ enabled:!!normalized.blacklist.enabled, list:sortTextList(normalized.blacklist.list || []) },
+    blacklistEtv:{ enabled:!!normalized.blacklistEtv.enabled, maxEtv:Number(normalized.blacklistEtv.maxEtv || 0), waitMissingEtv:!!normalized.blacklistEtv.waitMissingEtv, priority:!!normalized.blacklistEtv.priority },
+    queueFilter:{ enabled:normalized.queueFilter.enabled !== false, queues:{ CPT:normalized.queueFilter.queues.CPT !== false, DPT:normalized.queueFilter.queues.DPT !== false, AA:normalized.queueFilter.queues.AA !== false }, priority:!!normalized.queueFilter.priority },
+    advancedRules:{ enabled:normalized.advancedRules.enabled !== false, rules:canonicalRules }
   });
 }
 function waitForFiltersApplied(expectedFilters, deadline, applyId) {
