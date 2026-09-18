@@ -56,8 +56,10 @@ if (!html.includes("'/pcu_command_results/'+applyId")) throw new Error('Conferma
 if (!html.includes("target:minute,from:minute")) throw new Error('Assault deve conservare il target durante il tap');
 if (!html.includes('capturePlannerNtfyResult')) throw new Error('Away deve intercettare la conferma planner ntfy');
 if (!html.includes('PCU_PLANNER_APPLIED:')) throw new Error('Protocollo ntfy planner mancante');
-if (!html.includes('Filtri salvati su Firebase e richiesta applicazione inviata a PCU')) throw new Error('Esito filtri coerente con Sched mancante');
+if (!html.includes('Filtri verificati su Firebase e richiesta di rilettura inviata a PCU')) throw new Error('Esito filtri verificato mancante');
 if (!html.includes('⏳ Salvataggio su Firebase e invio a PCU')) throw new Error('Feedback immediato salvataggio mancante');
+if (!html.includes('function verifySavedFilters')) throw new Error('Verifica read-back Firebase filtri mancante');
+if (!html.includes("return sendPullFirebaseConfig(statusBarId, '').catch(function(){ return false; }).then")) throw new Error('I filtri devono richiedere sempre il pull via ntfy quando configurato');
 const filterApplyBlock = match[1].slice(match[1].indexOf('function applySavedConfigToPcu'), match[1].indexOf('SCHEDULER', match[1].indexOf('function applySavedConfigToPcu')));
 if (!filterApplyBlock.includes("if (scope !== 'plan') return true")) throw new Error('Filtri e Sched devono condividere il percorso apply immediato');
 if (!html.includes('class="section-title">🎯 Seleziona Coda')) throw new Error('Icona Seleziona Coda mancante');
@@ -67,6 +69,43 @@ if (!(html.indexOf('id="f-status-bar"') > html.indexOf('id="f-save-btn"'))) thro
 if (!html.includes("filters && Object.keys(filters).length")) throw new Error('I filtri cloud devono prevalere sullo stato live obsoleto');
 if (!html.includes('function reconcileBotCommandState')) throw new Error('Riconciliazione stato Bot mancante');
 if (!html.includes("window.addEventListener('pageshow'")) throw new Error('Ripristino app da background mancante');
+
+const collectStart = match[1].indexOf('function collectFilterData');
+const collectEnd = match[1].indexOf('function saveFilters', collectStart);
+if (collectStart < 0 || collectEnd <= collectStart) throw new Error('Raccolta filtri non trovata');
+const filterFields = {
+  'f-bl-enabled': { checked:true },
+  'f-bletv-enabled': { checked:true },
+  'f-bletv-max': { value:'123.5' },
+  'f-bletv-wait': { checked:true },
+  'f-bletv-priority': { checked:false },
+  'f-queue-enabled': { checked:true },
+  'f-queue-cpt': { checked:false },
+  'f-queue-dpt': { checked:true },
+  'f-queue-aa': { checked:false },
+  'f-queue-priority': { checked:true },
+  'f-brands-enabled': { checked:true },
+  'f-rules-enabled': { checked:false }
+};
+const filterCollectSandbox = {
+  _fData: {
+    blacklist:{ enabled:false, list:['zeta','alfa'] },
+    blacklistEtv:{ enabled:false, maxEtv:0, waitMissingEtv:false, priority:false },
+    queueFilter:{ enabled:false, queues:{ CPT:true, DPT:false, AA:true }, priority:false },
+    brands:{ enabled:false, list:['Sony'] },
+    advancedRules:{ enabled:true, rules:[] }
+  },
+  document:{ getElementById:id => filterFields[id] },
+  ruleFieldChanged:() => {},
+  sortTextList:list => list.map(v => String(v).trim().toLowerCase()).sort(),
+  sortRules:rules => rules
+};
+vm.runInNewContext(match[1].slice(collectStart, collectEnd) + '\nthis.collect=collectFilterData;', filterCollectSandbox);
+filterCollectSandbox.collect();
+const collected = filterCollectSandbox._fData;
+if (!collected.blacklist.enabled || !collected.blacklistEtv.enabled || collected.blacklistEtv.maxEtv !== 123.5 || !collected.blacklistEtv.waitMissingEtv) throw new Error('Click Salva perde Blacklist/ETV');
+if (collected.queueFilter.queues.CPT !== false || collected.queueFilter.queues.DPT !== true || collected.queueFilter.queues.AA !== false || !collected.queueFilter.priority) throw new Error('Click Salva perde Seleziona Coda');
+if (!collected.brands.enabled || collected.advancedRules.enabled !== false) throw new Error('Click Salva perde Brand VIP/Regole');
 
 const ntfyAckStart = match[1].indexOf('var _plannerNtfyResults');
 const ntfyAckEnd = match[1].indexOf('function isTechnicalFeedMessage', ntfyAckStart);

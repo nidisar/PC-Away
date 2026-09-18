@@ -339,7 +339,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34.4</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34.5</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -1321,7 +1321,7 @@ function normalizeRemoteConfig(data) {
   return base;
 }
 
-function filterConfigSubset(data) {
+function filterConfigSubset(data, updatedAt) {
   return {
     etv: data.etv,
     brands: data.brands,
@@ -1331,7 +1331,7 @@ function filterConfigSubset(data) {
     advancedRules: data.advancedRules,
     categoryWhitelist: data.categoryWhitelist,
     categoryBlacklist: data.categoryBlacklist,
-    updatedAt: Date.now(),
+    updatedAt: Number(updatedAt || Date.now()),
     schema: 'pcu_filters_v2'
   };
 }
@@ -1441,6 +1441,24 @@ function fbDbWrite(path, method, payload) {
     body: JSON.stringify(payload)
   }).then(function(){ return true; });
 }
+function verifySavedFilters(expectedConfig, expectedFilters) {
+  return Promise.all([
+    fbDbRead('/pcu_config/current'),
+    fbDbRead('/pcu_filters/config')
+  ]).then(function(saved) {
+    var savedConfig = saved[0] || {};
+    var savedFilters = saved[1] || {};
+    var expectedUpdatedAt = Number(expectedConfig.updatedAt || 0);
+    if (!expectedUpdatedAt || Number(savedConfig.updatedAt || 0) !== expectedUpdatedAt || Number(savedFilters.updatedAt || 0) !== expectedUpdatedAt) {
+      throw new Error('Firebase non ha conservato la revisione dei filtri appena inviata');
+    }
+    var expectedSignature = filterApplySignature(expectedFilters);
+    if (filterApplySignature(savedConfig) !== expectedSignature || filterApplySignature(savedFilters) !== expectedSignature) {
+      throw new Error('I filtri riletti da Firebase non coincidono con quelli inviati');
+    }
+    return true;
+  });
+}
 function patchGistAndPull(saveBtn, statusBarId, scope) { return patchFirebaseAndPull(saveBtn, statusBarId, scope); } // legacy alias
 
 function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
@@ -1453,16 +1471,20 @@ function patchFirebaseAndPull(saveBtn, statusBarId, scope) {
   delete payload._pcuLiveConfig;
   delete payload._cloudLoaded;
   payload.updatedAt = Date.now(); payload.schema = 'pcu_config_v1'; payload.source = 'pcu-away';
-  var configPatch = scope === 'filters' ? filterConfigSubset(payload) : scope === 'scheduler' ? schedulerConfigSubset(payload) : scope === 'plan' ? planConfigSubset(payload) : payload;
+  var filterPatch = scope === 'filters' ? filterConfigSubset(payload, payload.updatedAt) : null;
+  var configPatch = scope === 'filters' ? Object.assign({}, filterPatch) : scope === 'scheduler' ? schedulerConfigSubset(payload) : scope === 'plan' ? planConfigSubset(payload) : payload;
   configPatch.updatedAt = payload.updatedAt; configPatch.schema = 'pcu_config_v1'; configPatch.source = 'pcu-away';
   fbDbWrite('/pcu_config/current', 'PATCH', configPatch).then(function() {
     if (scope !== 'filters') return true;
-    return fbDbWrite('/pcu_filters/config', 'PATCH', filterConfigSubset(payload));
+    var filtersCloudPatch = Object.assign({}, filterPatch, { updatedAt:payload.updatedAt, schema:'pcu_filters_v2', source:'pcu-away' });
+    return fbDbWrite('/pcu_filters/config', 'PATCH', filtersCloudPatch).then(function() {
+      return verifySavedFilters(configPatch, filtersCloudPatch);
+    });
   }).then(function() {
     return applySavedConfigToPcu(scope, configPatch, statusBarId);
   }).then(function() {
     _fData = payload; _fData._cloudLoaded = true; _fDirty = false; saveBtn.disabled = false; saveBtn.textContent = '💾 Salva e applica a PCU';
-    var successMessage = scope === 'plan' ? '✅ Planner salvato e applicato: confermato da PCU' : scope === 'filters' ? '✅ Filtri salvati su Firebase e richiesta applicazione inviata a PCU' : '✅ Salvato su Firebase e comando apply inviato a PCU';
+    var successMessage = scope === 'plan' ? '✅ Planner salvato e applicato: confermato da PCU' : scope === 'filters' ? '✅ Filtri verificati su Firebase e richiesta di rilettura inviata a PCU' : '✅ Salvato su Firebase e comando apply inviato a PCU';
     setBarStatus(statusBarId,successMessage,'ok');
     setTimeout(function(){ setBarStatus(statusBarId,''); }, 4000);
   }).catch(function(e) {
@@ -1530,6 +1552,13 @@ function requestPcuHaulViaNtfy() {
 
 function sendApplyConfigCommands(statusBarId, scope, configPatch) {
   var applyId = scope === 'plan' ? ('planner_'+Date.now()+'_'+Math.random().toString(36).slice(2,8)) : '';
+  if (scope === 'filters') {
+    return sendPullFirebaseConfig(statusBarId, '').catch(function(){ return false; }).then(function(sentViaNtfy) {
+      if (sentViaNtfy) return { applyId:'', channel:'ntfy' };
+      return fbDbWrite('/pcu_commands', 'POST', { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' })
+        .then(function(){ return { applyId:'', channel:'firebase' }; });
+    });
+  }
   var command = scope === 'plan'
     ? { action:'applyDailyCptPlan', applyId:applyId, replyTopic:(cfg.topicCmd || '').trim(), plan:configPatch.dailyCptPlan, configUpdatedAt:configPatch.updatedAt, ts:Date.now(), source:'pcu-away' }
     : { action:'pullFirebaseConfig', ts:Date.now(), source:'pcu-away' };
