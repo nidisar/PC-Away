@@ -57,11 +57,14 @@ if (!html.includes("target:minute,from:minute")) throw new Error('Assault deve c
 if (!html.includes('capturePlannerNtfyResult')) throw new Error('Away deve intercettare la conferma planner ntfy');
 if (!html.includes('PCU_PLANNER_APPLIED:')) throw new Error('Protocollo ntfy planner mancante');
 if (!html.includes('Filtri salvati e applicati: confermato da PCU')) throw new Error('Conferma reale filtri mancante');
-if (!html.includes('Nessun ack diretto. Chiedo a PCU di rileggere i filtri via ntfy')) throw new Error('Fallback filtri ntfy mancante');
+if (!html.includes('Nessun ack diretto. Chiedo a PCU di rileggere e confermare i filtri')) throw new Error('Fallback filtri ntfy mancante');
 if (!html.includes("waitForFiltersApplied(configPatch, Date.now()+15000")) throw new Error('Verifica filtri dopo fallback ntfy mancante');
+if (!html.includes("sendPullFirebaseConfig(statusBarId, sent && sent.applyId)")) throw new Error('Fallback filtri deve usare l’ack con ID già usato dal Plan');
+if (!html.includes("status.plannerApplyId === applyId")) throw new Error('Ack compatibile filtri da PCU mancante');
 if (!html.includes('class="section-title">🎯 Seleziona Coda')) throw new Error('Icona Seleziona Coda mancante');
 if (!html.includes('.f-queue-options')) throw new Error('Layout compatto code mancante');
 if (!html.includes('canonicalRules')) throw new Error('Confronto semantico filtri mancante');
+if (!(html.indexOf('id="f-status-bar"') > html.indexOf('id="f-save-btn"'))) throw new Error('Stato Filtri deve apparire sotto il pulsante Salva');
 if (!html.includes("filters && Object.keys(filters).length")) throw new Error('I filtri cloud devono prevalere sullo stato live obsoleto');
 if (!html.includes('function reconcileBotCommandState')) throw new Error('Riconciliazione stato Bot mancante');
 if (!html.includes("window.addEventListener('pageshow'")) throw new Error('Ripristino app da background mancante');

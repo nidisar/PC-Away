@@ -339,7 +339,7 @@
 <div id="app">
 
   <div class="header">
-    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34.2</span></div>
+    <div class="logo">PCU AWAY <span id="app-build" style="font-size:10px;color:var(--text2);font-weight:600">v1.34.3</span></div>
     <div class="pc-status">
       <span class="status-dot" id="conn-dot"></span>
       <span id="conn-label">—</span>
@@ -544,7 +544,6 @@
       </div>
       <div id="filters-loading" class="not-configured" style="display:none">⏳ Caricamento filtri…</div>
       <div id="filters-body" style="display:none">
-        <div id="f-status-bar"></div>
         <div class="f-section">
           <div class="f-section-header"><div class="section-title">🚫 Blacklist Keywords</div><label class="f-toggle"><input type="checkbox" id="f-bl-enabled"><div class="f-toggle-track"></div></label></div>
           <div class="f-tag-list" id="f-bl-list"></div>
@@ -581,6 +580,7 @@
           <button class="f-add-rule-btn" onclick="addRule()">＋ Nuova regola</button>
         </div>
         <button class="f-save-btn" id="f-save-btn" onclick="saveFilters()">💾 Salva e applica a PCU</button>
+        <div id="f-status-bar"></div>
         <button class="f-reload-btn" onclick="loadCfgCloud(true)">↺ Ricarica da Firebase</button>
       </div>
     </div>
@@ -1577,6 +1577,12 @@ function filterApplySignature(data) {
   });
 }
 function waitForFiltersApplied(expectedFilters, deadline, applyId) {
+  var ntfyResult = applyId && _plannerNtfyResults[applyId];
+  if (ntfyResult) {
+    delete _plannerNtfyResults[applyId];
+    if (ntfyResult.ok) return Promise.resolve({ filterApplyId:applyId, confirmed:true, channel:'ntfy' });
+    return Promise.reject(new Error(ntfyResult.error || 'PCU non ha aggiornato i filtri'));
+  }
   var resultRead = applyId ? fbDbRead('/pcu_command_results/'+applyId).catch(function(){ return null; }) : Promise.resolve(null);
   return resultRead.then(function(result) {
     if (result && result.ok === true) {
@@ -1588,6 +1594,7 @@ function waitForFiltersApplied(expectedFilters, deadline, applyId) {
   }).then(function(status) {
     var applied = status && status.config;
     if (applyId && status && status.filterApplyId === applyId) return status;
+    if (applyId && status && status.plannerApplyId === applyId) return status;
     if (applied && filterApplySignature(applied) === filterApplySignature(expectedFilters)) return status;
     if (Date.now() >= deadline) throw new Error('PCU non ha confermato i nuovi filtri');
     return new Promise(function(resolve){ setTimeout(resolve, 1200); })
@@ -1623,8 +1630,8 @@ function applySavedConfigToPcu(scope, configPatch, statusBarId) {
     if (scope === 'filters') {
       setBarStatus(statusBarId,'⏳ Filtri salvati su Firebase. Attendo conferma da PCU…','');
       return waitForFiltersApplied(configPatch, Date.now()+6000, sent && sent.applyId).catch(function() {
-        setBarStatus(statusBarId,'⏳ Nessun ack diretto. Chiedo a PCU di rileggere i filtri via ntfy…','');
-        return sendPullFirebaseConfig(statusBarId, '').then(function(sentFallback) {
+        setBarStatus(statusBarId,'⏳ Nessun ack diretto. Chiedo a PCU di rileggere e confermare i filtri…','');
+        return sendPullFirebaseConfig(statusBarId, sent && sent.applyId).then(function(sentFallback) {
           if (!sentFallback) throw new Error('PCU non ha risposto e il topic comandi ntfy non è configurato');
           return waitForFiltersApplied(configPatch, Date.now()+15000, sent && sent.applyId);
         });
