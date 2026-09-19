@@ -22,6 +22,7 @@ const required = [
   '/pcu_v2/confirmed_orders.json', "row.origin === 'remote_ntfy'",
   '_fbAuthPromise', 'fetchWithTimeout', 'waitForFreshPcuStatus', '_cloudLoaded',
   'applyOptimisticCommandState', "join(',')+'/json?poll=0'", "if(t.key==='cmd')parseBotStato(msg)",
+  'away-weapons-free', 'toggleWeaponsFreeAway', 'saveWeaponsFreeThresholdAway', "sendCmd('weapons-free ",
   'function firebaseFetch', 'resetLiveFeedSession();',
   'tab-btn-plan', 'plan-v-canvas', 'DAILY_PLAN_ZOOMS',
   'schedulerConfigSubset', 'planConfigSubset', 'saveDailyPlan',
@@ -69,6 +70,9 @@ if (!(html.indexOf('id="f-status-bar"') > html.indexOf('id="f-save-btn"'))) thro
 if (!html.includes("filters && Object.keys(filters).length")) throw new Error('I filtri cloud devono prevalere sullo stato live obsoleto');
 if (!html.includes('function reconcileBotCommandState')) throw new Error('Riconciliazione stato Bot mancante');
 if (!html.includes("window.addEventListener('pageshow'")) throw new Error('Ripristino app da background mancante');
+if (!html.includes("'weapons-free': weaponsFree.enabled !== false")) throw new Error('Stato live WEAPONS FREE non applicato');
+if (!html.includes("key!=='weapons-free'")) throw new Error('Disattiva cecchino non deve spegnere WEAPONS FREE');
+if (!html.includes('v1.34.6')) throw new Error('Versione Away non aggiornata');
 
 const collectStart = match[1].indexOf('function collectFilterData');
 const collectEnd = match[1].indexOf('function saveFilters', collectStart);
